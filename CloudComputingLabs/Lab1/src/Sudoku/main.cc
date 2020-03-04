@@ -5,6 +5,8 @@
 #include <sys/time.h>
 
 #include "sudoku.h"
+#include <iostream>
+using namespace std;
 
 int64_t now()
 {
