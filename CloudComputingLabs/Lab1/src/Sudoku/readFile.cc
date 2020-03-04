@@ -4,17 +4,19 @@ using namespace std;
 
 int main(){
 	ifstream inputfile;
-	string flieName;
+	string fileName;
 	cin>>fileName;
 	
-	if(fileName[0]=='.'&&flieName[1]=='/'){
+	if(fileName[0]=='.'&&fileName[1]=='/'){
 		fileName.erase(0,2);
 	}
 	
 	inputfile.open(fileName,ios::in);
 	
 	string sudo;
-	inputfile>>sudo;
-	cout<<sudo;
+	while(getline(inputfile,sudo)){
+		cout<<sudo<<endl;
+	}
+	
 	return 0;
 }
