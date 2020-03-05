@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
       solve = solve_sudoku_dancing_links;
   int64_t start = now();
   while (fgets(puzzle, sizeof puzzle, fp) != NULL) {
+	cout<<"puzzle="<<puzzle<<endl;
     if (strlen(puzzle) >= N) {
       ++total;
       input(puzzle);
@@ -49,6 +50,11 @@ int main(int argc, char* argv[])
         printf("No: %s", puzzle);
       }
     }
+	for(int i=0;i<N;i++){
+		if(i%9==0){cout<<endl;}
+		cout<<board[i];
+	}
+	cout<<endl;
   }
   int64_t end = now();
   double sec = (end-start)/1000000.0;
