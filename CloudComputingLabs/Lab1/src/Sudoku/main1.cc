@@ -31,7 +31,7 @@ void *producer(void* args){
 		sem_wait(&empty);
 		sem_wait(&mutex);
 		if(fgets(puzzle, sizeof puzzle, fp)==NULL){prime=1;}
-		sem_post(&empty);
+		sem_post(&mutex);
 		sem_post(&full);	
 	}
 }
@@ -41,6 +41,7 @@ void *consumer(void* args){
 		sem_wait(&full);
 		sem_wait(&mutex);
 		if (strlen(puzzle) >= N) {
+		  //cout<<puzzle<<endl;
 		  ++total;
 		  input(puzzle);
 		  init_cache();
@@ -54,11 +55,11 @@ void *consumer(void* args){
 		  }
 		}
 		for(int i=0;i<N;i++){
-			if(i%9==0){cout<<endl;}
+			//if(i%9==0){cout<<endl;}
 			cout<<board[i];
 		}
 		cout<<endl;
-		sem_post(&empty);
+		sem_post(&mutex);
 		sem_post(&empty);	
 	}
 }
