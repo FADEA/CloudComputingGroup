@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
       solve = solve_sudoku_dancing_links;
   int64_t start = now();
   while (fgets(puzzle, sizeof puzzle, fp) != NULL) {
-	//cout<<"puzzle="<<puzzle<<endl;
+	cout<<"puzzle="<<puzzle<<endl;
     if (strlen(puzzle) >= N) {
       ++total;
       input(puzzle);
@@ -43,8 +43,8 @@ int main(int argc, char* argv[])
       //if (solve_sudoku_basic(0)) {
       if (solve(0)) {
         ++total_solved;
-        if (!solved())
-          assert(0);
+//         if (!solved())
+//           assert(0);
       }
       else {
         printf("No: %s", puzzle);

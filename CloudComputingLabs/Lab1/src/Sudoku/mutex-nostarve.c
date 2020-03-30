@@ -2,13 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "common_threads.h"
-
-//
-// Here, you have to write (almost) ALL the code. Oh no!
-// How can you show that a thread does not starve
-// when attempting to acquire this mutex you build?
-//
 
 typedef __ns_mutex_t {
 	sem_t mutex;
