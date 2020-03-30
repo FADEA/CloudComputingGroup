@@ -5,11 +5,15 @@
 #include <sys/time.h>
 #include <iostream>
 #include "sudoku.h"
+#include <semaphore.h>
+#include <pthread.h>
 using namespace std;
 
 sem_t mutex;
 sem_t empty;
 sem_t full;
+char puzzle[128];
+FILE* fp;
 
 int64_t now()
 {
@@ -40,7 +44,7 @@ int main(int argc, char* argv[])
   init_neighbors();
 
   FILE* fp = fopen(argv[1], "r");
-  char puzzle[128];
+  
   int total_solved = 0;
   int total = 0;
   bool (*solve)(int) = solve_sudoku_basic;
