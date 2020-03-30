@@ -3,14 +3,36 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
-
+#include <iostream>
 #include "sudoku.h"
+using namespace std;
+
+sem_t mutex;
+sem_t empty;
+sem_t full;
 
 int64_t now()
 {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   return tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
+void *read(void* args)
+{
+  while (fgets(puzzle, sizeof puzzle, fp) != NULL) {
+   if (strlen(puzzle) >= N) {
+	sem_wait(&empty);
+	sem_wait(&mutex);
+	sem_post(&empty);
+	sem_post(&full);
+	}
+  }
+}
+
+void *solve(void* args)
+{
+
 }
 
 int main(int argc, char* argv[])
