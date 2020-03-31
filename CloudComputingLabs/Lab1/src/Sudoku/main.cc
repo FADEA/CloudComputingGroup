@@ -28,7 +28,7 @@ void *read(void* args) {
 		if (strlen(puzzle) >= N) {
 			sem_wait(&empty);
 			sem_wait(&mutex);
-			sem_post(&empty);
+			sem_post(&mutex);
 			sem_post(&full);
 		}
 	}
@@ -44,6 +44,10 @@ void *solve(void* args) {
 			init_cache();
 			if (solve(0)) {
 				++total_solved;
+				for(int i=0; i<N; i++) {
+					cout<<board[i];
+				}
+				cout<<endl;
 				if (!solved())
 					assert(0);
 			} else {
@@ -54,43 +58,30 @@ void *solve(void* args) {
 		sem_post(&empty);
 	}
 }
+//信号量初始化
+void init_sem() {
+	sem_init(&mutex,0,1);
+	sem_init(&full,0,0);
+	sem_init(&empty,0,1);
+}
 
 int main(int argc, char* argv[]) {
 	init_neighbors();
-
 	FILE* fp = fopen(argv[1], "r");
 
+	init_sem();
+	pthread_t r;
+	pthread_t s;
 
-	bool (*solve)(int) = solve_sudoku_basic;
-	if (argv[2] != NULL)
-		if (argv[2][0] == 'a')
-			solve = solve_sudoku_min_arity;
-		else if (argv[2][0] == 'c')
-			solve = solve_sudoku_min_arity_cache;
-		else if (argv[2][0] == 'd')
-			solve = solve_sudoku_dancing_links;
 	int64_t start = now();
-	while (fgets(puzzle, sizeof puzzle, fp) != NULL) {
-		if (strlen(puzzle) >= N) {
-			++total;
-			input(puzzle);
-			init_cache();
-			//if (solve_sudoku_min_arity_cache(0)) {
-			//if (solve_sudoku_min_arity(0))
-			//if (solve_sudoku_basic(0)) {
-			if (solve(0)) {
-				++total_solved;
-				if (!solved())
-					assert(0);
-			} else {
-				printf("No: %s", puzzle);
-			}
-		}
-	}
+	pthread_create(&r,NULL,read,NULL);
+	pthread_create(&s,NULL,solve,NULL);
+	pthread_join(r,NULL);
+	pthread_join(s,NULL);
+
 	int64_t end = now();
 	double sec = (end-start)/1000000.0;
 	printf("%f sec %f ms each %d\n", sec, 1000*sec/total, total_solved);
-
 	return 0;
 }
 
