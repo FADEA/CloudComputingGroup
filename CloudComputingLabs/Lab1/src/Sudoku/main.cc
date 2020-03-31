@@ -29,11 +29,13 @@ struct problem{
 	char str[128];
 };
 queue<problem> q;
+
 struct result{
 	int num;
 	int re[81];
 };
 queue<result> r;
+
 int64_t now()
 {
   struct timeval tv;
