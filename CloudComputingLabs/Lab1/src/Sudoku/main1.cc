@@ -105,7 +105,9 @@ void *consumer(void* args){
 	while (prime==0){
 		rwlock_acquire_readlock;
         int g=get;get++;
+        
 		if (strlen(Input[g].puzzle) >= N&&g<=pull) {
+          cout<<"g="<<g<<endl;
 		  ++total;
 		  input(Input[g].puzzle,a);
 		  if (solve(a)) {
