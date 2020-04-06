@@ -8,7 +8,7 @@ int main(){
     while(true){
         /*接受客户端连接 */
         int fd=accept(sockfd,NULL,NULL);
-        cout<<"有客户端连接"<<endl;
+        // cout<<"有客户端连接"<<endl;
 
         /*处理客户端请求 */
         handle_request(fd);
