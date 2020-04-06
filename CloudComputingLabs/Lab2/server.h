@@ -10,6 +10,8 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <iostream>
+#include <fstream> 
+#include <fcntl.h>
 using namespace std;
 
 int create_sockfd();
