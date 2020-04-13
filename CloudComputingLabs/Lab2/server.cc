@@ -29,6 +29,56 @@ int create_sockfd(){
     return sockfd;
 
 }
+
+int create_epoll(){
+    int nready,efd,res;
+
+    /*tep:epoll_event参数 ep[]:epoll_wait参数 */
+    struct epoll_event tep,ep[OPEN_MAX];
+
+    /*创建套接字 */
+    int sockfd;
+    sockfd=socket(AF_INET,SOCK_STREAM,0);
+
+    /*设置服务器sockaddr_in结构 */
+    sockaddr_in servaddr;
+    bzero(&servaddr,sizeof(servaddr));
+    servaddr.sin_family=AF_INET;
+    servaddr.sin_port=htons(6001);       
+    servaddr.sin_addr.s_addr=INADDR_ANY; //监听任意网卡
+
+    /*防止重启服务器端口绑定失败 */
+    int reuse = 1;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0){
+        perror("setsockopet error\n");
+        return -1;
+    }
+    /*绑定服务器端口和套接字 */
+    if(bind(sockfd,(struct sockaddr*)&servaddr,sizeof(servaddr))<0){
+        perror("bind error");
+        exit(1);
+    }
+
+    /*监听请求 */
+    listen(sockfd,20);
+    
+    /*创建epoll模型，efd指向红黑树根节点 */
+    int efd=epoll_create(OPEN_MAX);
+    if(efd<0){
+        perror("epoll_create error");
+    }
+
+    /*指定lfd的监听时间为“读” */
+    tep.events=EPOLLIN;tep.data.fd=sockfd;
+    /*讲lfd及对应的结构体设置到树上，efd可以找到该树 */
+    res=epoll_ctl(efd,EPOLL_CTL_ADD,sockfd,&tep);
+    if(res<0){
+        perror("epoll_ctl error");
+    }
+
+    return efd;
+}
+
 void handle_request(int fd){
     char buff[1000*1000]={0};
     int n=read(fd,buff,sizeof(buff));
