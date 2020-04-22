@@ -30,15 +30,10 @@ int create_sockfd(){
 
 }
 
-int create_epoll(){
-    int nready,efd,res;
-
-    /*tep:epoll_event参数 ep[]:epoll_wait参数 */
-    struct epoll_event tep,ep[OPEN_MAX];
-
-    /*创建套接字 */
-    int sockfd;
-    sockfd=socket(AF_INET,SOCK_STREAM,0);
+/*创建epoll模型 */
+int create_epoll(int sockfd){
+    /*tep:epoll_event参数*/
+    struct epoll_event tep;
 
     /*设置服务器sockaddr_in结构 */
     sockaddr_in servaddr;
@@ -68,15 +63,55 @@ int create_epoll(){
         perror("epoll_create error");
     }
 
-    /*指定lfd的监听时间为“读” */
+    /*指定sockfd的监听事件为“读” */
     tep.events=EPOLLIN;tep.data.fd=sockfd;
-    /*讲lfd及对应的结构体设置到树上，efd可以找到该树 */
-    res=epoll_ctl(efd,EPOLL_CTL_ADD,sockfd,&tep);
-    if(res<0){
+
+    /*将sockd及对应的结构体设置到树上，efd可以找到该树 */
+    if(epoll_ctl(efd,EPOLL_CTL_ADD,sockfd,&tep)<0){
         perror("epoll_ctl error");
     }
 
     return efd;
+}
+
+int setnonblocking(int fd){
+    int old_option=fcntl(fd,F_GETFL);
+    int new_option=old_option|O_NONBLOCK;
+    fcntl(fd,F_SETFL,new_option);
+    return old_option;
+}
+
+/*
+ 将文件描述符fd上的EPOLLIN注册到epollfd指示的epoll内核
+ 事件表中，参数enable_et指定是否对fd启用ET模式
+*/
+void addfd(int epollfd,int fd,bool enable_et){
+    epoll_event event;
+    event.data.fd=fd;
+    event.events=EPOLLIN;
+    if(enable_et){
+        event.events |= enable_et;
+    }
+    epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&event);
+    setnonblocking(fd);
+}
+
+/*ET模式的工作流程*/
+void et(epoll_event* events,int number,int epollfd,int listenfd){
+    char buf[BUFFER_SIZE];
+    for(int i=0;i<number;i++){
+        int sockfd=events[i].data.fd;
+        if(sockfd==listenfd){
+            int connfd=accept(listenfd,NULL,NULL);
+            addfd(epollfd,connfd,true);
+        }else if(events[i].events & EPOLLIN){
+            /*这段代码不会被重复触发*/
+            handle_request(sockfd);
+            close(sockfd);
+        }else{
+            perror("something else happend\n");
+        }
+    }
 }
 
 void handle_request(int fd){
@@ -118,7 +153,8 @@ void handle_request(int fd){
             fileType="text/html"; //文件类型
         }else if(strstr(filename,".jpg")){
             fileType="image/jpg"; //图片类型
-        }
+        }int n=read(fd,buff,sizeof(buff));
+    // cout<<"n="<<n<<endl;
 
         /*读取文件 */
         // cout<<filename<<endl;

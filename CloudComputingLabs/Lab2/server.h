@@ -12,7 +12,19 @@
 #include <iostream>
 #include <fstream> 
 #include <fcntl.h>
+#include <sys/epoll.h>
 using namespace std;
 
 int create_sockfd();
+int create_epoll(int);
 void handle_request(int);
+int setnonblocking(int fd);
+void addfd(int,int,bool);
+void et(epoll_event*,int,int,int);
+
+
+#define OPEN_MAX 1024
+#define MAX_LINE 8192
+#define SERV_PORT 6001
+#define MAX_EVENT_NUMBER 1024
+#define BUFFER_SIZE 10
