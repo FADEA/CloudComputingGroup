@@ -83,17 +83,28 @@ int setnonblocking(int fd){
 
 /*
  将文件描述符fd上的EPOLLIN注册到epollfd指示的epoll内核
- 事件表中，参数enable_et指定是否对fd启用ET模式
+ 事件表中，参数oneshot指定是否注册fd上的EPOLLONESHOT事件
 */
-void addfd(int epollfd,int fd,bool enable_et){
+void addfd(int epollfd,int fd,bool oneshot){
     epoll_event event;
     event.data.fd=fd;
-    event.events=EPOLLIN;
-    if(enable_et){
-        event.events |= enable_et;
+    event.events=EPOLLIN | EPOLLET;
+    if(oneshot){
+        event.events |= EPOLLONESHOT;
     }
     epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&event);
     setnonblocking(fd);
+}
+
+/*
+重置fd上的事件，这样操作后，尽管fd上的EPOLLONESHOT事件被注册，但
+是操作系统仍然会触发fd上的EPOLLIN事件，且只触发一次
+*/
+void reset_oneshot(int epollfd,int fd){
+    epoll_event event;
+    event.data.fd = fd;
+    event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+    epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&event);
 }
 
 /*ET模式的工作流程*/
@@ -114,9 +125,17 @@ void et(epoll_event* events,int number,int epollfd,int listenfd){
     }
 }
 
+void worker(void* arg){
+    fds* fd = (fds*)arg;
+    int sockfd=fd->sockfd;
+    int epollfd=fd->epollfd;
+    handle_request(sockfd);
+}
+
+/*请求处理函数*/
 void handle_request(int fd){
     char buff[1000*1000]={0};
-    int n=read(fd,buff,sizeof(buff));
+    int n=recv(fd,buff,sizeof(buff),0);
     // cout<<"n="<<n<<endl;
     cout<<"接收到的信息为:"<<endl;
     cout<<buff;
