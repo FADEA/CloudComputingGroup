@@ -34,19 +34,24 @@ class http_conn{
 
         /*解析客户请求时，主状态机所处的状态*/
         enum CHECK_STATE{
-            CHECK_STATE_REQUESTLINE=0,
-            CHECK_STATE_HEADER,
-            CHECK_STATE_CONTENT
+            CHECK_STATE_REQUESTLINE=0,  //正在分析请求行
+            CHECK_STATE_HEADER,         //正在分析头部字段
+            CHECK_STATE_CONTENT         //正在分析内容段
         };
 
         /*服务器处理HTTP请求可能的结果*/
         enum HTTP_CODE{
-            NO_REQUEST,GET_REQUEST,BAD_REQUEST,
-            NO_RESOURCE,FORBIDDEN_RESOURCE,FILE_RESOURCE,
-            INTERNAL_ERROR,CLOSED_CONNECTION
+            NO_REQUEST,             //请求不完整，需要继续读；
+            GET_REQUEST,            //获取一个完整的请求；
+            BAD_REQUEST,            //请求有语法错误
+            NO_RESOURCE,            //请求的资源不存在
+            FORBIDDEN_RESOURCE,     //对资源没有足够的权限
+            FILE_RESOURCE,          //请求的资源存在
+            INTERNAL_ERROR,         //内部错误
+            CLOSED_CONNECTION       //客户机已经关闭连接
         };
 
-        /*行的读取状态*/
+        /*行的读取状态，分别表示：读取到一个完整的行、行出错、行尚且不完整*/
         enum LINE_STATUS {LINE_OK=0,LINE_BAD,LINE_OPEN};
 
     public:
@@ -56,9 +61,7 @@ class http_conn{
         /*初始化新接受的连接*/
         void init(int sockfd,const sockaddr_in& addr);
         /*关闭连接*/
-        void close_conn(){
-            bool real_close=true;
-        }
+        void close_conn(bool real_close=true);
         /*处理客户机请求*/
         void process();
         /*非阻塞读操作*/
@@ -92,7 +95,7 @@ class http_conn{
         bool add_linger();
         bool add_blank_line();
 
-    private:
+    public:
         /*
         所有socket上的事件都注册到一个epoll内核事件表中
         所以讲epoll文件描述符设置为静态的
@@ -101,7 +104,7 @@ class http_conn{
         /*估计用户数量*/
         static int m_user_count;
 
-        private:
+    private:
         /*该http连接的socket和对方的socket地址*/
         int m_sockfd;
         sockaddr_in m_address;
