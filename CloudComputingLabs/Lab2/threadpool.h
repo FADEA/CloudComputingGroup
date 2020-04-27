@@ -68,7 +68,7 @@ bool threadpool<T>::append(T* request){
     /*操作工作队列需要加锁，因为其被所有线程共享*/
     m_queuelocker.lock();
     if(m_workqueue.size()>m_max_requests){
-        m_quequelocker.unlock();
+        m_queuelocker.unlock();
         return false;
     }
     m_workqueue.push_back(request);
@@ -80,12 +80,13 @@ bool threadpool<T>::append(T* request){
 template<typename T>
 void* threadpool<T>::worker(void* arg){
     threadpool* pool=(threadpool*) arg;
-    pool->run;
+    pool->run();
     return pool;
 }
 
 template<typename T>
 void threadpool<T>::run(){
+
     while(!m_stop){
         m_queuestat.wait();
         m_queuelocker.lock();
@@ -99,6 +100,7 @@ void threadpool<T>::run(){
         if(!request){
             continue;
         }
+        // printf("thread run\n");
         request->process();
     }
 }

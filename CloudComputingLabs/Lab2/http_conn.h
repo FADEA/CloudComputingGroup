@@ -87,7 +87,7 @@ class http_conn{
 
         /*下面这组函数用于填充HTTP应答*/
         void unmap();
-        bool add_response(const char* format);
+        bool add_response(const char* format, ... );
         bool add_content(const char* content);
         bool add_status_line(int status,const char* title);
         bool add_headers(int content_length);

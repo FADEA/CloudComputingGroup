@@ -14,6 +14,11 @@
 class sem{
     public:
         /*创建并初始化信号量*/
+        sem(){
+            if(sem_init(&m_sem,0,0)<0){
+                perror("sem_init error\n");
+            }
+        }
         sem(int n){
             if(sem_init(&m_sem,0,n)<0){
                 perror("sem_init error\n");
@@ -28,7 +33,7 @@ class sem{
         }
 
         /*等待信号量*/
-        bool wait(){xiancheng
+        bool wait(){
             if(sem_wait(&m_sem)<0){
                 perror("sem_wait error\n");
                 return false;

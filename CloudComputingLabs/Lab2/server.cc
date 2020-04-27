@@ -85,16 +85,16 @@ int setnonblocking(int fd){
  将文件描述符fd上的EPOLLIN注册到epollfd指示的epoll内核
  事件表中，参数oneshot指定是否注册fd上的EPOLLONESHOT事件
 */
-void addfd(int epollfd,int fd,bool oneshot){
-    epoll_event event;
-    event.data.fd=fd;
-    event.events=EPOLLIN | EPOLLET;
-    if(oneshot){
-        event.events |= EPOLLONESHOT;
-    }
-    epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&event);
-    setnonblocking(fd);
-}
+// void addfd(int epollfd,int fd,bool oneshot){
+//     epoll_event event;
+//     event.data.fd=fd;
+//     event.events=EPOLLIN | EPOLLET;
+//     if(oneshot){
+//         event.events |= EPOLLONESHOT;
+//     }
+//     epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&event);
+//     setnonblocking(fd);
+// }
 
 /*
 重置fd上的事件，这样操作后，尽管fd上的EPOLLONESHOT事件被注册，但

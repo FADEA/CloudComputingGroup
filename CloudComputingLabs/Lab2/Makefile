@@ -1,10 +1,10 @@
 cc = g++
 prom = http_server
-deps = server.h
-obj = server.o main.o
+deps = threadpool.h http_conn.h locker.h 
+obj = main.o http_conn.o
 
 $(prom):$(obj)
-	$(cc) -o $(prom) $(obj) -pthread
+	$(cc) -o $(prom) $(obj) $(deps) -pthread
 
 %.o:%.cc $(deps)
 	$(cc) -c $< -o $@
