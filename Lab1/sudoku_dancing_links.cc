@@ -252,8 +252,8 @@ struct Dance
     }
 };
 
-bool solve_sudoku_dancing_links(int* b)
+bool solve_sudoku_dancing_links(int unused)
 {
-  Dance d(b);
+  Dance d(board);
   return d.solve();
 }

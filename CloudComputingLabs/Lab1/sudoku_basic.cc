@@ -19,13 +19,13 @@ static void find_spaces()
   }
 }
 
-void input(const char in[N],int* b)
+void input(const char in[N])
 {
   for (int cell = 0; cell < N; ++cell) {
-    b[cell] = in[cell] - '0';
-    assert(0 <= b[cell] && b[cell] <= NUM);
+    board[cell] = in[cell] - '0';
+    assert(0 <= board[cell] && board[cell] <= NUM);
   }
-//   find_spaces();
+  find_spaces();
 }
 
 bool available(int guess, int cell)

@@ -77,7 +77,6 @@ int64_t now()
 
 void *producer(void* args){
 	FILE* fp = fopen(ar, "r");
-    
 	while (prime==0){
 		rwlock_acquire_writelock(rw);
         int i=0;
@@ -99,24 +98,19 @@ void *producer(void* args){
 	}
 }
 void *consumer(void* args){
-    cout<<"hhhhhh1"<<endl;
-	bool (*solve)(int*) = solve_sudoku_dancing_links;
-    int a[N];
+	bool (*solve)(int) = solve_sudoku_dancing_links;
 	while (prime==0){
 		rwlock_acquire_readlock;
         int g=get;get++;
-        
 		if (strlen(Input[g].puzzle) >= N&&g<=pull) {
-          cout<<"g="<<g<<endl;
 		  ++total;
-		  input(Input[g].puzzle,a);
-		  if (solve(a)) {
+		  input(Input[g].puzzle);
+		  init_cache();
+		  if (solve(0)) {
 		    ++total_solved;
             for(int i=0;i<N;i++){
-        			result[Input[g].num][i]=a[i];
-                cout<<a[i];
+        			result[Input[g].num][i]=board[i];
         		}
-             cout<<endl;
 		    if (!solved())
 		      assert(0);
 		  }
