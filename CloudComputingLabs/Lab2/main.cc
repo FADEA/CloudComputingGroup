@@ -39,8 +39,33 @@ void show_error(int connfd,const char* info){
 
 int main(int argc,char* argv[]){
    
-    // const char* ip= argv[1];
-    int port=6001;
+    if(argc<7){
+        printf("usage: %s --ip ip_address --port port_number --number-thread number\n",basename(argv[0]));
+        return 1;
+    }
+    char* ip;
+    if(strcmp(argv[1],"--ip")==0){
+        ip = argv[2];
+    }else{
+        printf("usage: %s --ip ip_address --port port_number --number-thread number\n",basename(argv[0]));
+        return 1;
+    }
+    
+    int port;
+    if(strcmp(argv[3],"--port")==0){
+        port = atoi(argv[4]);
+    }else{
+        printf("usage: %s --ip ip_address --port port_number --number-thread number\n",basename(argv[0]));
+        return 1;
+    }
+    int number;
+    if(strcmp(argv[5],"--number-thread")==0){
+        number = atoi(argv[6]);
+    }else{
+        printf("usage: %s --ip ip_address --port port_number --number-thread number\n",basename(argv[0]));
+        return 1;
+    }
+
 
     //忽略SIGPIPE信号
     addsig(SIGPIPE,SIG_IGN);
@@ -48,7 +73,7 @@ int main(int argc,char* argv[]){
     //创建线程池
     threadpool<http_conn>* pool = NULL;
     try{
-        pool=new threadpool<http_conn>;
+        pool=new threadpool<http_conn>(number,10000);
     }catch( ... ){
         return 1;
     }
@@ -74,16 +99,16 @@ int main(int argc,char* argv[]){
     struct sockaddr_in address;
     bzero(&address,sizeof(address));
     address.sin_family=AF_INET;
-    // inet_pton(AF_INET,ip,&address.sin_addr);
+    inet_pton(AF_INET,ip,&address.sin_addr);
     address.sin_port=htons(port);
-    address.sin_addr.s_addr=INADDR_ANY;
+    // address.sin_addr.s_addr=INADDR_ANY;
 
     ret=bind(listenfd,(struct sockaddr*)&address,sizeof(address));
     if(ret<0){
         perror("bind error\n");
     }
 
-    ret=listen(listenfd,5);
+    ret=listen(listenfd,124);
     if(ret<0){
         perror("listen error\n");
     }
@@ -93,7 +118,7 @@ int main(int argc,char* argv[]){
     if(epollfd<0){
         perror("epoll_create error\n");
     }
-    addfd(epollfd,listenfd,true);
+    addfd(epollfd,listenfd,false);
     http_conn::m_epollfd=epollfd;
 
     while(true){
@@ -104,7 +129,7 @@ int main(int argc,char* argv[]){
             perror("epoll failure\n");
             break;
         }
-        // cout<<"number="<<number<<endl;
+        printf("number = %d\n",number);
         for(int i=0;i<number;i++){
             int sockfd=events[i].data.fd;
             if(sockfd==listenfd){

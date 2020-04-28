@@ -10,6 +10,8 @@ const char* error_404_title="Not Found";
 const char* error_404_form="The requested file was not found on this server.\n";
 const char* error_500_title="Internal Error";
 const char* error_500_form="There was an unusual problem serving the requested file.\n";
+const char* error_501_title="Not Implemented";
+const char* error_501_form="The request is not implemented.\n";
 
 const char* doc_root="";
 
@@ -164,8 +166,10 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char* text){
     char* method=text;
     if(strcmp(method,"GET")==0){
         m_method=GET;
+    }else if(strcmp(method,"POST")==0){
+        m_method=POST;
     }else{
-        return BAD_REQUEST;
+        return NOT_IMPLEMENT;
     }
 
     m_url+=strspn(m_url," \t");
@@ -258,6 +262,8 @@ http_conn::HTTP_CODE http_conn::process_read(){
                 ret=parse_request_line(text);
                 if(ret==BAD_REQUEST){
                     return BAD_REQUEST;
+                }else if(ret==NOT_IMPLEMENT){
+                    return NOT_IMPLEMENT;
                 }
                 break;
             }
@@ -422,6 +428,15 @@ bool http_conn::process_write(HTTP_CODE ret){
             add_status_line(500,error_500_title);
             add_headers(strlen(error_500_form));
             if(!add_content(error_500_form)){
+                return false;
+            }
+            break;
+        }
+        case NOT_IMPLEMENT:
+        {
+            add_status_line(501,error_501_title);
+            add_headers(strlen(error_501_form));
+            if(!add_content(error_501_form)){
                 return false;
             }
             break;

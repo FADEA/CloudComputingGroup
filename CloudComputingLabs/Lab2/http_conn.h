@@ -48,7 +48,8 @@ class http_conn{
             FORBIDDEN_RESOURCE,     //对资源没有足够的权限
             FILE_RESOURCE,          //请求的资源存在
             INTERNAL_ERROR,         //内部错误
-            CLOSED_CONNECTION       //客户机已经关闭连接
+            CLOSED_CONNECTION,      //客户机已经关闭连接
+            NOT_IMPLEMENT           //请求未实现
         };
 
         /*行的读取状态，分别表示：读取到一个完整的行、行出错、行尚且不完整*/

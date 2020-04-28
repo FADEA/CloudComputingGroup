@@ -1,5 +1,5 @@
 cc = g++
-prom = http_server
+prom = httpserver
 deps = threadpool.h http_conn.h locker.h 
 obj = main.o http_conn.o
 
