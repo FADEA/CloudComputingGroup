@@ -1,13 +1,16 @@
-cc= g++
-prom = haha
+src = $(wildcard *.cc)
+targets = $(patsubst %.cc, %, $(src))
 
-obj = server.o
+CC = g++
+CFLAGS = -Wall -g 
 
-$(prom):$(obj)
-	$(cc) -o $(prom) $(obj) -pthread
+all:$(targets)
 
-%.o:%.cc 
-	$(cc) -c $< -o $@
+$(targets):%:%.cc
+	$(CC) $< -o $@ $(CFLAGS)
 
+.PHONY:clean all
 clean:
-	rm -rf $(obj) $(prom)
+	-rm -rf $(targets) 
+
+

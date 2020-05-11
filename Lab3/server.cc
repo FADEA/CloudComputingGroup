@@ -1,8 +1,3 @@
-/*
- *
- 
- * 
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -39,4 +34,5 @@ int main(int argc,char *argv[]){
 	}
 	close(cfd);
 	close(lfd);
+	return 0;
 }

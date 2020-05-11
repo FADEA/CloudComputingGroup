@@ -18,3 +18,15 @@ uint16_t | ntohs | 网络到主机转换端口号
 2. ip地址------>网络字节序 inet_pton()
 3. 网络字节序-->点分十进制字符串 inet_ntop()
 
+# sockaddr数据结构
+1. struct sockaddr（诞生于IPV4协议）
+	1. 16位地址类型
+	2. 14字节地址数据
+2. struct sockaddr_in（细分sockaddr而得）
+	1. 16位地址类型
+	2. 16位端口号
+	3. 32位ip地址
+	4. 8字节填充
+3. 在使用bind，accept，connect函数时，注意将sockaddr_in强转成sockaddr类型
+
+
