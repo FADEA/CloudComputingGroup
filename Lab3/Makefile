@@ -1,16 +1,17 @@
 src = $(wildcard *.cc)
-targets = $(patsubst %.cc, %, $(src))
+obj = $(patsubst %.cc, %.o, $(src))
 
-CC = g++
-CFLAGS = -Wall -g 
+all: server client
 
-all:$(targets)
+server: server.o wrap.o
+	gcc server.o wrap.o -o server -Wall
+client: client.o wrap.o
+	gcc client.o wrap.o -o client -Wall
 
-$(targets):%:%.cc
-	$(CC) $< -o $@ $(CFLAGS)
+%.o:%.cc
+	gcc -c $< -Wall
 
-.PHONY:clean all
-clean:
-	-rm -rf $(targets) 
-
+.PHONY: clean all
+clean: 
+	-rm -rf server client $(obj)
 
