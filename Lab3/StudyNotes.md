@@ -88,3 +88,17 @@ uint16_t | ntohs | 网络到主机转换端口号
 	1. 参数二是一个数组，是一个传出参数
 	3. 参数三描述数组有多大
 
+# epoll边沿触发和水平触发
+1. 边沿触发：epoll ET
+	1. 缓冲区中还有数据，但是epoll不会触发
+2. 水平触发：epoll LT
+	2. 缓冲区中还有数据时，epoll会触发
+
+# epoll非阻塞IO
+1. fcntl
+
+# epoll反应堆模型
+1. libevent跨平台，使用epoll非阻塞IO模型实现
+2. epoll反应堆模型：
+	1. epoll-->服务器-->监听-->cfd-->可读-->epoll返回-->read-->cfd从树上摘下-->重新设置监听cfd，操作-->小写转大写-->等待epoll_wait返回-->回写客户端-->cfd从树上摘下-->设置监听cfd读事件，操作-->epoll继续监听
+	2. evt[i].event=EPOLLIN，evt[i].data.fd=*ptr

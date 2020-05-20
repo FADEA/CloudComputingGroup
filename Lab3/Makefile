@@ -1,17 +1,19 @@
 src = $(wildcard *.cc)
 obj = $(patsubst %.cc, %.o, $(src))
 
-all: server client
+all: server client s_epoll
 
 server: server.o wrap.o
-	gcc server.o wrap.o -o server -Wall -lpthread
+	g++ server.o wrap.o -o server -Wall -lpthread
 client: client.o wrap.o
-	gcc client.o wrap.o -o client -Wall -lpthread
+	g++ client.o wrap.o -o client -Wall -lpthread
+s_epoll: server_epoll.o wrap.o
+	g++ server_epoll.o wrap.o -o server_epoll -Wall -lpthread
 
 %.o:%.cc
-	gcc -c $< -Wall
+	g++ -c $< -Wall
 
 .PHONY: clean all
 clean: 
-	-rm -rf server client $(obj)
+	-rm -rf server client s_epoll  $(obj)
 
