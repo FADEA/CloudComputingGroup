@@ -55,3 +55,36 @@ uint16_t | ntohs | 网络到主机转换端口号
 	2. 返回的只是一个数，如果监听的事件不多，需要循环遍历1024，浪费
 	3. 监听集合和满足监听条件的集合，所以需要不断保存原有的集合，否则使用select函数后会被覆盖
 
+# poll函数
+1. int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+2. struct pollfd {
+               int   fd;         /* file descriptor */
+               short events;     /* requested events */
+               short revents;    /* returned events */
+           };
+3. 参数一：数组的首地址
+
+
+# epool函数
+1. epoll是linux下多路复用IO接口select/poll的增强版本，它能够显著的提高程序在大量并发连接中只有少数活跃的情况下系统cpu的利用率
+2. int epoll_create(int size);
+	1. 该函数返回一个红黑树的树根
+	2. 调用该函数时，操作系统会根据size创建这么一颗红黑树
+3.  int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
+	1. 参数一：epoll_create的返回值
+	2. 参数二：控制选项
+	3. 某一个具体的文件描述符
+	4. struct epoll_event {
+               uint32_t     events;      /* Epoll events */
+               epoll_data_t data;        /* User data variable */
+           };
+	5.  typedef union epoll_data {
+               void        *ptr;
+               int          fd;
+               uint32_t     u32;
+               uint64_t     u64;
+           } epoll_data_t;
+4.  int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout);
+	1. 参数二是一个数组，是一个传出参数
+	3. 参数三描述数组有多大
+
