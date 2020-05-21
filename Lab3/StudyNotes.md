@@ -102,3 +102,10 @@ uint16_t | ntohs | 网络到主机转换端口号
 2. epoll反应堆模型：
 	1. epoll-->服务器-->监听-->cfd-->可读-->epoll返回-->read-->cfd从树上摘下-->重新设置监听cfd，操作-->小写转大写-->等待epoll_wait返回-->回写客户端-->cfd从树上摘下-->设置监听cfd读事件，操作-->epoll继续监听
 	2. evt[i].event=EPOLLIN，evt[i].data.fd=*ptr
+
+# 心跳包
+1. 心跳包
+2. 乒乓包
+
+# 线程池
+
