@@ -108,9 +108,62 @@ int threadpool_add(threadpool_t *pool,void *(*function)(void *arg),void *arg){
 	pthread_mutex_lock(&(pool->lock));
 	while((pool->queue_size==pool->queue_max_size)&&(!pool->shutdown)){
 		pthread_cond_wait(&pool->queue_not_full,&(pool->lock));
-
 	}	
+	if(pool->shutdown){
+		pthread_mutex_unlock(&(pool->lock));
+	}
+	if(pool->task_queue[pool->queue_rear].arg!=NULL){
+		free(pool->task_queue[pool->queue.rear].arg);
+		pool->task_queue[pool->queue.read].arg=NULL;
+	}
+	
+	pool->task_queue[pool->queue_rear].function=function;
+	pool->task_queue[pool->queue_rear].arg=arg;
+	pool->queue_rear=(pool->queue_rear+1)%pool->queue_max_size;
+	pool->queue_size++;
+
+	pthread_cond_signal(&(pool->queue_not_empty));
+	pthread_mutex_unlock(&(pool->lock));
+
+	return 0;
 }
 
+void *threadpool_thread(void *threadpool){
+	threadpool_t *pool=(threadpool_t *)threadpool;
+	threadpool_task_t task;
 
+	while(true){
+		pthread_mutex_lock(&(pool->lock));
+		while((pool->queue_size==0)&&(!pool->shutdown)){
+			printf("thread 0x%x is waiting\n",(unsigned int)pthread_self());
+			pthread_cond_wait(&(pool->queue_not_empty),&(pool->lock));
+		
+			if(pool->wait_exit_thr_num>0){
+				pool->wait_exit_thr_num--;
+				
+				if(pool->live_thr_num>pool->min_thr_num){
+					printf("thread 0x%x is exiting\n",(unsigned int)pthread_self());
+					pool->live_thr_num--;
+					pthread_mutex_unlock(&(lock->lock));
+					pthread_exit(NULL);
+				}
+			}
+		}
+	}
+	if(pool->shutdown){
+		pthread_mutex_unlock(&(pool->lock));
+		printf("thread 0x%x is exiting\n",(unsigned int)pthread_self());
+		pthread_exit(NULL);
+	}
+
+	task.function=pool->task_queue[pool->queue_front].function;
+	task.arg=pool->task_queue[pool->queue_front].arg;
+
+	pool->queue_front=(pool->queue_font+1)%pool->queue_max_size;
+	pool->queue_size--;
+
+	pthread_cond_broadcast(&(pool->queue_not_full));
+
+	pthread_mutex_unlock();
+}
 
