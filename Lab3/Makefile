@@ -11,8 +11,8 @@ s_epoll: server_epoll.o wrap.o
 	g++ server_epoll.o wrap.o -o s_epoll -Wall -lpthread
 resp: resp.o wrap.o
 	g++ resp.o wrap.o -o resp -Wall 
-main: main.o wrap.o
-	g++ main.o wrap.o -o main -Wall -lpthread 
+main: main.o wrap.o participant.o
+	g++ main.o wrap.o  participant.o -o main -Wall -lpthread 
 
 %.o:%.cc
 	g++ -c $< -Wall -lpthread

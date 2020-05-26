@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <iostream>
 #include "wrap.h"
+#include "participant.h"
 using namespace std;
 
 //协调者的ip的端口号
@@ -100,6 +101,7 @@ int main(int argc,char *argv[]){
 		printf("%s error\n",basename(argv[2]));
 		return 1;
 	}
+	int p=participant(CIP,CPORT,PIP[0],PPORT[0]);
 	return 0;
 }
 

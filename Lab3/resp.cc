@@ -5,6 +5,7 @@
 #include <errno.h>
 
 
+
 char *Rdel(char *ptr){
 	static char str[100];
 	char s[10];
