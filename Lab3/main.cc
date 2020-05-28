@@ -9,6 +9,7 @@
 #include <iostream>
 #include "wrap.h"
 #include "participant.h"
+#include "coordinator.h"
 using namespace std;
 
 //协调者的ip的端口号
@@ -83,6 +84,7 @@ int parse_config(char *config_file){
 int main(int argc,char *argv[]){
 	char *config_file;
 	int C_or_P=0;
+	int success;
 	if(argc!=3){
 		printf("usage: %s --config_path config_path\n",basename(argv[0]));
 		return 1;
@@ -101,7 +103,12 @@ int main(int argc,char *argv[]){
 		printf("%s error\n",basename(argv[2]));
 		return 1;
 	}
-	int p=participant(CIP,CPORT,PIP[0],PPORT[0]);
+	else if(C_or_P==2){
+		success=participant(CIP,CPORT,PIP[0],PPORT[0]);
+	}
+	else if(C_or_P==1){
+		success=coordinator(CIP,CPORT,PIP,PPORT,P);
+	}
 	return 0;
 }
 
