@@ -5,6 +5,9 @@
 #include <errno.h>
 
 
+int get_Method(char *ptr){
+	return 0;
+}
 
 char *Rdel(char *ptr){
 	static char str[100];

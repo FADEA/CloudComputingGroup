@@ -32,6 +32,7 @@ void *heart_handler(void* arg){
 				mmap.erase(it++);
 			}
 			else if(it->second.count<5&&it->second.count>=0){
+				
 				it->second.count+=1;
 				++it;
 			}
@@ -148,16 +149,29 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						map<int,IPC>::iterator it;
 						it=mmap.find(sockfd);
 						it->second.count=0;
+						char heart[2]="!";
+						Write(sockfd,heart,sizeof(heart));
 						//mmap[sockfd].second.count=0;
 						cout<<"received heart_beat from client\n";
 					}
 					else{
+							/*
 						 for (i = 0; i < n; i++)
                         buf[i] = toupper(buf[i]);   //转大写,写回给客户端
 
                		     Write(STDOUT_FILENO, buf, n);
                   		 Writen(sockfd, buf, n);
-
+						*/
+						map<int,IPC>::iterator ite;
+						for(ite=mmap.begin();ite!=mmap.end();ite++){
+							Write(ite->first,buf,n);
+							sleep(3);
+						}
+						char End[2]="!";
+						for(ite=mmap.begin();ite!=mmap.end();ite++){
+							Write(ite->first,End,sizeof(End));
+						}
+						
 					}
 				}
 			}

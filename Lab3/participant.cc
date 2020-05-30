@@ -6,12 +6,15 @@
 #include <sys/epoll.h>
 #include <errno.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <map>
 #include "wrap.h"
 #include <iostream>
 using namespace std;
 
 int fd;
+int state=0;
+int coor_is_dead=0;
 
 map<string,string> database;
 string key,value;
@@ -25,6 +28,11 @@ void *send_heart(void *arg){
 		sleep(3);
 	}
 	return NULL;
+}
+
+void *add_count(void *arg){
+
+
 }
 
 int participant(char *cip,int cport,char *pip,int pport){
@@ -56,6 +64,36 @@ int participant(char *cip,int cport,char *pip,int pport){
 	if(ret!=0){
 		perr_exit("pthread create error");
 	}
+
+	struct epoll_event event;
+	struct epoll_event resevent[10];
+	int efd;int flag;int res;int len;
+	char buf[BUFSIZ];
+
+	efd=epoll_create(10);
+	event.events=EPOLLIN|EPOLLET;
+
+	flag = fcntl(fd, F_GETFL);          /* 修改connfd为非阻塞读 */
+    flag |= O_NONBLOCK;
+    fcntl(fd, F_SETFL, flag);
+
+	event.data.fd=fd;
+	epoll_ctl(efd,EPOLL_CTL_ADD,fd,&event);
+	while(1){
+		printf("epoll_wait begin\n");
+        res = epoll_wait(efd, resevent, 10, -1);        //最多10个, 阻塞监听
+        printf("epoll_wait end res %d\n", res);
+        if (resevent[0].data.fd == fd) {
+ //           while (1){    //非阻塞读, 轮询
+				len = Read(fd, buf,sizeof(buf) );
+				//if(buf[0]=='!')break;
+                write(STDOUT_FILENO, buf, len);
+//		   	}	
+			
+		}
+	}
+
+	/*
 	char buf[BUFSIZ];
 	int n;
 	while(1){
@@ -64,6 +102,7 @@ int participant(char *cip,int cport,char *pip,int pport){
 		n=Read(fd,buf,sizeof(buf));
 		Write(STDOUT_FILENO,buf,n);
 	}
+	*/
 	return 0;
 }
 
