@@ -15,10 +15,13 @@ using namespace std;
 int fd;
 int state=0;
 int coor_is_dead=0;
+int count=0;
 
 map<string,string> database;
 string key,value;
 map<string,string>::iterator it;
+
+struct sockaddr_in serv_addr;
 
 void *send_heart(void *arg){
 	cout<<"The heartbeat is sending\n";
@@ -31,7 +34,35 @@ void *send_heart(void *arg){
 }
 
 void *add_count(void *arg){
-
+	int ct;
+	while(1){
+		if(!coor_is_dead){
+			if(count==5){
+				coor_is_dead=1;
+			}
+			else if(count>=0&&count<5){
+				count=count+1;
+			}
+		}
+		else{
+			char str[16];
+			ct=connect(fd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
+			cout<<fd<<" "<<ct<<endl;
+		
+			int clie_port;
+			inet_ntop(AF_INET,&serv_addr.sin_addr,str,sizeof(str));
+			clie_port=serv_addr.sin_port;
+			cout<<"haha"<<str<<":"<<ntohs(clie_port)<<endl;
+		
+			if(ct>=0){
+				count=0;
+				coor_is_dead=0;
+			}
+			sleep(1);
+			continue;
+		}
+		sleep(3);
+	}
 
 }
 
@@ -50,7 +81,7 @@ int participant(char *cip,int cport,char *pip,int pport){
 	
 	Bind(fd,(struct sockaddr*)&localaddr,sizeof(localaddr));
 	
-	struct sockaddr_in serv_addr;
+	//struct sockaddr_in serv_addr;
 	memset(&serv_addr,0,sizeof(serv_addr));
 	serv_addr.sin_family=AF_INET;
 	serv_addr.sin_port=htons(cport);
@@ -61,6 +92,13 @@ int participant(char *cip,int cport,char *pip,int pport){
 	pthread_t tid;
 	int ret=pthread_create(&tid,NULL,send_heart,NULL);
 	pthread_detach(tid);
+	if(ret!=0){
+		perr_exit("pthread create error");
+	}
+
+	pthread_t tid2;
+	ret=pthread_create(&tid2,NULL,add_count,NULL);
+	pthread_detach(tid2);
 	if(ret!=0){
 		perr_exit("pthread create error");
 	}
@@ -83,14 +121,21 @@ int participant(char *cip,int cport,char *pip,int pport){
 		printf("epoll_wait begin\n");
         res = epoll_wait(efd, resevent, 10, -1);        //最多10个, 阻塞监听
         printf("epoll_wait end res %d\n", res);
-        if (resevent[0].data.fd == fd) {
+		if(resevent[0].data.fd==fd){
+			len=Read(fd,buf,sizeof(buf));
+			if(buf[0]=='!')count=0;
+			else{
+				cout<<buf<<endl;
+			}
+		}	
+//       if (resevent[0].data.fd == fd) {
  //           while (1){    //非阻塞读, 轮询
-				len = Read(fd, buf,sizeof(buf) );
+//				len = Read(fd, buf,sizeof(buf) );
 				//if(buf[0]=='!')break;
-                write(STDOUT_FILENO, buf, len);
+  //              write(STDOUT_FILENO, buf, len);
 //		   	}	
 			
-		}
+//		}
 	}
 
 	/*
