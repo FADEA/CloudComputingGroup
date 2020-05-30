@@ -1,5 +1,6 @@
 #ifndef _COORDINATOR_H_
 #define _COORDINATOR_H_
+#include <map>
 
 enum Type {HEART,OTHER};
 
@@ -8,7 +9,7 @@ struct PACKET_HEAD{
 	int lenth;
 };
 
-struct CPC{
+struct IPC{
 	char ip[16];
 	int port;
 	int count;

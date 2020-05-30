@@ -11,33 +11,59 @@
 #include <iostream>
 using namespace std;
 
+int fd;
 
 map<string,string> database;
 string key,value;
-map<string,string>::iterator iter;
+map<string,string>::iterator it;
+
+void *send_heart(void *arg){
+	cout<<"The heartbeat is sending\n";
+	char heart[2]="!";
+	while(1){
+		send(fd,heart,sizeof(heart),0);
+		sleep(3);
+	}
+	return NULL;
+}
 
 int participant(char *cip,int cport,char *pip,int pport){
 	printf("%s:%d is waiting...\n",pip,pport);
 	
-	int listenfd,connfd,sockfd;
-	struct sockaddr_in cliaddr,servaddr;
-	listenfd=Socket(AF_INET,SOCK_STREAM,0);
-	
+	fd=Socket(AF_INET,SOCK_STREAM,0);
 	int opt=1;
-	setsockopt(listenfd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
+	setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
 
-	bzero(&servaddr,sizeof(servaddr));
-	servaddr.sin_family=AF_INET;
-	servaddr.sin_addr.s_addr=htonl(INADDR_ANY);
-	servaddr.sin_port=htons(pport);
-	Bind(listenfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
-	Listen(listenfd,128);
+	struct sockaddr_in localaddr;
+	bzero(&localaddr,sizeof(localaddr));
+	localaddr.sin_family=AF_INET;
+	localaddr.sin_addr.s_addr=htonl(INADDR_ANY);
+	localaddr.sin_port=pport;
 	
-
-
-
+	Bind(fd,(struct sockaddr*)&localaddr,sizeof(localaddr));
 	
+	struct sockaddr_in serv_addr;
+	memset(&serv_addr,0,sizeof(serv_addr));
+	serv_addr.sin_family=AF_INET;
+	serv_addr.sin_port=htons(cport);
+	inet_pton(AF_INET,cip,&serv_addr.sin_addr.s_addr);
 
+	Connect(fd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
+
+	pthread_t tid;
+	int ret=pthread_create(&tid,NULL,send_heart,NULL);
+	pthread_detach(tid);
+	if(ret!=0){
+		perr_exit("pthread create error");
+	}
+	char buf[BUFSIZ];
+	int n;
+	while(1){
+		fgets(buf,sizeof(buf),stdin);	
+		Write(fd,buf,strlen(buf));
+		n=Read(fd,buf,sizeof(buf));
+		Write(STDOUT_FILENO,buf,n);
+	}
 	return 0;
 }
 
