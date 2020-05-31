@@ -10,9 +10,13 @@
 #include "coordinator.h"
 #include "threadpool.h"
 #include <iostream>
+#include <fcntl.h>
 #define MAXLINE 100
 #define OPEN_MAX 5000
 using namespace std;
+
+int reach[100];
+int which=1;
 
 ssize_t efd;
 map<int,IPC>mmap;
@@ -29,12 +33,124 @@ pthread_mutex_t map_lock;
 void *to_participant(void *arg){
 	info *inf=(info*)arg;
 	map<int,IPC>::iterator ite;
-	cout<<inf->bbuf;
-	pthread_mutex_lock(&map_lock);
-	for(ite=mmap.begin();ite!=mmap.end();ite++){
-	Write(ite->first,inf->bbuf,inf->n);
+	//cout<<inf->bbuf;
+	int num=0;
+	int i=0;
+	char temp[100];int t=0;
+	char how_much[10];int ht=0;
+	memset(temp,0,sizeof(temp));
+	memset(how_much,0,sizeof(how_much));
+	for(i=0;inf->bbuf[i]!='\r';i++){
+		if(inf->bbuf[i]>='0'&&inf->bbuf[i]<='9'){
+			how_much[ht++]=inf->bbuf[i];
+		}
 	}
-	pthread_mutex_unlock(&map_lock);
+	num=atoi(how_much);
+	//cout<<"num="<<num<<endl;
+	
+	temp[t++]='*';
+	char fd_char[5];
+	memset(fd_char,0,sizeof(fd_char));
+	sprintf(fd_char,"%d",inf->fd);
+	int fd_len=(int)strlen(fd_char);
+	for(int j=0;j<fd_len;j++){
+		temp[t++]=fd_char[j];
+	}
+	temp[t++]='|';
+	int flag=2;
+	while(flag){
+		if(inf->bbuf[i++]=='\n')flag--;
+	}	
+	int method=0;
+	if(inf->bbuf[i]=='S'){
+		temp[t++]='0';
+		method=1;
+	}
+	else if(inf->bbuf[i]=='G'){
+		temp[t++]='1';
+		method=2;
+	}
+	else if(inf->bbuf[i]=='D'){
+		temp[t++]='2';
+		method=3;
+	}
+	//cout<<"method="<<method<<endl;
+	i=i+5;
+	num--;
+//	cout<<"aaa\n";
+	while(num){
+		if(inf->bbuf[i]=='$'){
+			num--;
+			char h[10];int hh=0;
+			memset(h,0,sizeof(h));
+			temp[t++]='|';
+			for(i=i+1;;i++){
+				if(inf->bbuf[i]>='0'&&inf->bbuf[i]<='9')h[hh++]=inf->bbuf[i];
+				else break;
+			}
+		//	cout<<"bbbb\n";
+			hh=atoi(h);
+	//		cout<<hh<<endl;
+			i=i+2;
+	//		cout<<inf->bbuf[i]<<endl;
+			int ti=i+hh;
+			for(i=i;i<ti;i++){
+				
+				temp[t++]=inf->bbuf[i];
+			}
+		}
+		else i=i+1;
+		temp[t]='|';
+	}
+	//cout<<"fff "<<inf->bbuf[i]<<endl;
+	/*
+	while(num){
+		if(inf->bbuf[i++]=='\r'){
+			temp[t++]='|';
+			num--;
+		}
+		else if((inf->bbuf[i]>='0'&&inf->bbuf[i]<='9')||(inf->bbuf[i]>='a'&&inf->bbuf[i]<='z')||(inf->bbuf[i]>='A'&&inf->bbuf[i]<='Z')){
+			temp[t++]=inf->bbuf[i];
+			i++;
+		}
+	}
+	*/
+	//cout<<"temp="<<temp<<endl;
+	int has_participant=1;
+	if(method==1||method==3){
+		pthread_mutex_lock(&map_lock);
+		reach[inf->fd]=mmap.size();
+		if(reach[inf->fd]==0)has_participant=0;
+		if(has_participant==1){
+			//cout<<"reach="<<reach[inf->fd]<<endl;
+			for(ite=mmap.begin();ite!=mmap.end();ite++){
+				Write(ite->first,temp,sizeof(temp));
+			}
+			pthread_mutex_unlock(&map_lock);
+		}	
+		else pthread_mutex_unlock(&map_lock);
+	}
+	else if(method==2){//get的是挂了的参与者没考虑
+		pthread_mutex_lock(&map_lock);
+		reach[inf->fd]=mmap.size();
+		if(reach[inf->fd]==0)has_participant=0;
+		if(has_participant==1){
+			//cout<<"which="<<which<<" inf->fd="<<inf->fd<<endl;
+			int wh=which % reach[inf->fd];
+			which++;
+		//	cout<<"wh="<<wh<<endl;
+			for(ite=mmap.begin();ite!=mmap.end();ite++){
+			//	cout<<"aaaa ite->first="<<ite->first<<endl;
+				if(wh==0)break;
+				wh--;
+			}
+		//	cout<<"ite->first="<<ite->first<<endl;
+			Write(ite->first,temp,sizeof(temp));
+			pthread_mutex_unlock(&map_lock);
+		}
+		else pthread_mutex_unlock(&map_lock);
+		//cout<<"aaaaaa\n";
+	}
 	return NULL;
 }
 
@@ -47,9 +163,12 @@ void *heart_handler(void* arg){
 			if(it->second.count==5){
 				printf("The participant %s:%d is offline.\n",it->second.ip,it->second.port);
 				int fd=it->first;
+				
 				int res=epoll_ctl(efd,EPOLL_CTL_DEL,fd,NULL);
 				if(res==-1){
-					perr_exit("epoll del error.");
+					//perr_exit("epoll del error.");
+					//printf("delete a null fd.\n");
+					printf("cut participant bec network problem.\n");
 				}
 				close(fd);
 				mmap.erase(it++);
@@ -86,6 +205,8 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 		perr_exit("lock init failed.");
 	}
 
+	memset(reach,0,sizeof(reach));
+
 	int listenfd,connfd,sockfd;
 	int n;
 	ssize_t nready,res;
@@ -119,6 +240,13 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 	//将listenfd放入红黑树中
 	tep.events=EPOLLIN;
 	tep.data.fd=listenfd;
+	
+//	int flag;
+//	tep.events=EPOLLIN|EPOLLET;
+//	flag = fcntl(listenfd, F_GETFL);          /* 修改connfd为非阻塞读 */
+//    flag |= O_NONBLOCK;
+//    fcntl(listenfd, F_SETFL, flag);
+
 	res=epoll_ctl(efd,EPOLL_CTL_ADD,listenfd,&tep);
 	if(res==-1){
 		perr_exit("epoll_ctl error");
@@ -132,7 +260,7 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 	printf("into while(1)\n");
 	while(1){
 		nready=epoll_wait(efd,ep,OPEN_MAX,-1);
-		
+		//cout<<"3333\n";
 		if(nready==-1){
 			perr_exit("epoll_wait error");
 		}
@@ -170,22 +298,37 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 				n=Read(sockfd,buf,sizeof(buf));
 				//cout<<"No1. "<<buf<<endl;
 				if(n==0){
+				//	pthread_mutex_lock(&map_lock);
+				//	if(mmap.find(sockfd)!=mmap.end()){
+					//	cout<<"22222\n";
+						res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
+						if(res==-1){
+						perr_exit("epoll_ctl error");
+						}
+		//				pthread_mutex_unlock(&map_lock);
+		//				continue;
+		//			}
+				//	cout<<"1111\n";
+		//			pthread_mutex_unlock(&map_lock);
+		//			res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
+		//			if(res==-1){
+		//				perr_exit("epoll_ctl error");
+		//			}
 					pthread_mutex_lock(&map_lock);
 					if(mmap.find(sockfd)!=mmap.end()){
 						pthread_mutex_unlock(&map_lock);
 						continue;
 					}
 					pthread_mutex_unlock(&map_lock);
-					res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
-					if(res==-1){
-						perr_exit("epoll_ctl error");
-					}
 					Close(sockfd);
 					printf("%d is shutdown\n",sockfd);
 				}
 				else if(n<0){
 					perror("read n<0 error");
 					res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
+					if(res==-1){
+						perr_exit("epoll_ctl n<0 error");
+					}
 					Close(sockfd);
 				}
 				else{
@@ -193,8 +336,8 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						map<int,IPC>::iterator it;
 						pthread_mutex_lock(&map_lock);
 						it=mmap.find(sockfd);
-						pthread_mutex_unlock(&map_lock);
 						it->second.count=0;
+						pthread_mutex_unlock(&map_lock);
 						char heart[2]="!";
 						Write(sockfd,heart,sizeof(heart));
 						//mmap[sockfd].second.count=0;

@@ -5,11 +5,15 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "wrap.h"
+#include "resp.h"
 #include <ctype.h>
+#include <string>
+#include <iostream>
 
-#define SERV_PORT 6666
+
+#define SERV_PORT 8001
 #define SERV_IP "127.0.0.1"
-
+using namespace std;
 int main(int argc,char *argv[]){
 	int cfd;
 	struct sockaddr_in serv_addr;
@@ -25,11 +29,23 @@ int main(int argc,char *argv[]){
 
 	Connect(cfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
 	
+	string ss;
+	int flag=0;
 	while(1){
+	//	cin>>ss;
+	//	if(ss=="set")flag=1;
+//		else if(ss=="get")flag=2;
+//		else if(ss=="del")flag=3;
 		fgets(buf,sizeof(buf),stdin);	
-		Write(cfd,buf,strlen(buf));
-		n=Read(cfd,buf,sizeof(buf));
-		Write(STDOUT_FILENO,buf,n);
+//		if(flag==1)
+	//	Write(cfd,Rset(buf),strlen(Rset(buf)));
+//		else if(flag==2)
+		Write(cfd,Rget(buf),strlen(Rget(buf)));
+//		else if(flag==3)
+//		Write(cfd,Rdel(buf),strlen(Rdel(buf)));
+	
+	//	n=Read(cfd,buf,sizeof(buf));
+	//	Write(STDOUT_FILENO,buf,n);
 	}
 	Close(cfd);
 	return 0;

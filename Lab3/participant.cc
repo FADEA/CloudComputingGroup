@@ -145,7 +145,7 @@ int participant(char *cip,int cport,char *pip,int pport){
 	//struct epoll_event event;
 	struct epoll_event resevent[10];
 	int res;int len;
-	char buf[BUFSIZ];	
+	char buf[100];	
 	memset(buf,0,sizeof(buf));
 	efd1=epoll_create(10);
 	/*
@@ -164,11 +164,12 @@ int participant(char *cip,int cport,char *pip,int pport){
         res = epoll_wait(efd1, resevent, 10, -1);        //最多10个, 阻塞监听
        // printf("epoll_wait end res %d\n", res);
 		if(resevent[0].data.fd==fd){
+			memset(buf,0,sizeof(buf));
 			len=Read(fd,buf,sizeof(buf));
 			cout<<"len= "<<len<<endl;
 			if(buf[0]=='!')count=0;//心跳包
 			else{
-				cout<<buf;
+				cout<<buf<<endl;
 				/*
 				if(buf[0]=='*'&&state==INIT){//set/get/del/abort/del
 					LE le;

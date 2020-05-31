@@ -135,9 +135,11 @@ char *Rset(char *ptr){
 	return str;
 }
 
+/*
 int main(){
 	char buf[BUFSIZ];
 	fgets(buf,sizeof(buf),stdin);
 	printf("%s\n",Rdel(buf));
 	return 0;
 }
+*/

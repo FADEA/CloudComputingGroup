@@ -3,7 +3,7 @@
 
 char *Rdel(char *ptr);
 char *Rset(char *ptr);
-char *Rdel(char *ptr);
+char *Rget(char *ptr);
 
 
 
