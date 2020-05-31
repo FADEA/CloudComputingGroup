@@ -8,12 +8,26 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <map>
+#include <stack>
 #include "wrap.h"
+#include "participant.h"
 #include <iostream>
 using namespace std;
 
+/*
+ * set----0
+ * get----1
+ * del----2
+ * abort--3
+ * commit-4
+ */
+struct LE{
+	int kind;
+	string content;
+};
+
 int fd;
-int state=0;
+State state=INIT;
 int coor_is_dead=0;
 int count=0;
 int opt=1;
@@ -23,6 +37,8 @@ int flag;
 map<string,string> database;
 string key,value;
 map<string,string>::iterator it;
+
+stack<LE> log;
 
 struct sockaddr_in serv_addr;
 struct sockaddr_in localaddr;
@@ -132,6 +148,9 @@ int participant(char *cip,int cport,char *pip,int pport){
 	char buf[BUFSIZ];	
 	memset(buf,0,sizeof(buf));
 	efd1=epoll_create(10);
+	/*
+	 * 为什么下面改成水平触发以及阻塞读，在while中epoll_wait反而不阻塞了
+	 */
 	event.events=EPOLLIN|EPOLLET;
 
 	flag = fcntl(fd, F_GETFL);          /* 修改connfd为非阻塞读 */
@@ -141,14 +160,54 @@ int participant(char *cip,int cport,char *pip,int pport){
 	event.data.fd=fd;
 	epoll_ctl(efd1,EPOLL_CTL_ADD,fd,&event);
 	while(1){
-		printf("epoll_wait begin\n");
+		//printf("epoll_wait begin\n");
         res = epoll_wait(efd1, resevent, 10, -1);        //最多10个, 阻塞监听
-        printf("epoll_wait end res %d\n", res);
+       // printf("epoll_wait end res %d\n", res);
 		if(resevent[0].data.fd==fd){
 			len=Read(fd,buf,sizeof(buf));
-			if(buf[0]=='!')count=0;
+			cout<<"len= "<<len<<endl;
+			if(buf[0]=='!')count=0;//心跳包
 			else{
 				cout<<buf;
+				/*
+				if(buf[0]=='*'&&state==INIT){//set/get/del/abort/del
+					LE le;
+					char temp[30];
+					int t=0;
+					int kind;
+					string content;
+					kind=buf[1]-'0';
+					if(kind==3||kind==4)continue;
+					for(int i=2;buf[i]!='?';i++){
+						temp[t++]=buf[i];
+					}
+					temp[t]='\0';
+					content=temp;
+					le.kind=kind;
+					le.content=content;
+					log.push(le);
+					state=READY;
+				}
+				else if(buf[0]=='*'&&state==READY){
+					int kind;
+					string content;
+					kind=buf[1]-'0';
+					if(kind==3){
+							
+					}
+					else if(kind==4){
+						string key;
+						string value;
+						LE le=log.top();
+					}
+					else{
+						continue;
+					}
+				}
+				else if(buf[0]=='#'){//log
+					
+				}*/
+
 			}
 		}	
 //       if (resevent[0].data.fd == fd) {

@@ -8,21 +8,44 @@
 #include <map>
 #include "wrap.h"
 #include "coordinator.h"
+#include "threadpool.h"
 #include <iostream>
-#define MAXLINE 8192
+#define MAXLINE 100
 #define OPEN_MAX 5000
 using namespace std;
 
 ssize_t efd;
 map<int,IPC>mmap;
 
+struct info{
+	int fd;
+	int n;
+	char bbuf[MAXLINE];
+};
+
+pthread_mutex_t map_lock;
+
+
+void *to_participant(void *arg){
+	info *inf=(info*)arg;
+	map<int,IPC>::iterator ite;
+	cout<<inf->bbuf;
+	pthread_mutex_lock(&map_lock);
+	for(ite=mmap.begin();ite!=mmap.end();ite++){
+	Write(ite->first,inf->bbuf,inf->n);
+	}
+	pthread_mutex_unlock(&map_lock);
+	return NULL;
+}
+
 void *heart_handler(void* arg){
 	printf("The heartbeat checking thread started.\n");
 	while(1){
 		map<int,IPC>::iterator it;
+		pthread_mutex_lock(&map_lock);
 		for(it=mmap.begin();it!=mmap.end();){
 			if(it->second.count==5){
-				printf("The client %s:%d is offline.\n",it->second.ip,it->second.port);
+				printf("The participant %s:%d is offline.\n",it->second.ip,it->second.port);
 				int fd=it->first;
 				int res=epoll_ctl(efd,EPOLL_CTL_DEL,fd,NULL);
 				if(res==-1){
@@ -40,6 +63,7 @@ void *heart_handler(void* arg){
 				++it;
 			}
 		}
+		pthread_mutex_unlock(&map_lock);
 		sleep(3);
 	}
 }
@@ -54,6 +78,13 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 	it=mmap.find(0);
 	cout<<it->second.ip<<it->second.port<<it->second.count<<endl;
 	*/
+
+	
+    threadpool_t *thp = threadpool_create(3,100,100);
+	printf("pool init.\n");
+	if(pthread_mutex_init(&(map_lock),NULL)!=0){
+		perr_exit("lock init failed.");
+	}
 
 	int listenfd,connfd,sockfd;
 	int n;
@@ -101,6 +132,7 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 	printf("into while(1)\n");
 	while(1){
 		nready=epoll_wait(efd,ep,OPEN_MAX,-1);
+		
 		if(nready==-1){
 			perr_exit("epoll_wait error");
 		}
@@ -121,7 +153,9 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						strcpy(ipc.ip,str);
 						ipc.port=clie_port;
 						ipc.count=0;
+						pthread_mutex_lock(&map_lock);
 						mmap.insert(pair<int,IPC>(connfd,ipc));
+						pthread_mutex_unlock(&map_lock);
 					}
 				}
 				tep.events=EPOLLIN;tep.data.fd=connfd;
@@ -132,10 +166,16 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 			}
 			else{
 				sockfd=ep[i].data.fd;
+				memset(buf,0,sizeof(buf));
 				n=Read(sockfd,buf,sizeof(buf));
 				//cout<<"No1. "<<buf<<endl;
 				if(n==0){
-					if(mmap.find(sockfd)!=mmap.end())continue;
+					pthread_mutex_lock(&map_lock);
+					if(mmap.find(sockfd)!=mmap.end()){
+						pthread_mutex_unlock(&map_lock);
+						continue;
+					}
+					pthread_mutex_unlock(&map_lock);
 					res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
 					if(res==-1){
 						perr_exit("epoll_ctl error");
@@ -151,7 +191,9 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 				else{
 					if(buf[0]=='!'){
 						map<int,IPC>::iterator it;
+						pthread_mutex_lock(&map_lock);
 						it=mmap.find(sockfd);
+						pthread_mutex_unlock(&map_lock);
 						it->second.count=0;
 						char heart[2]="!";
 						Write(sockfd,heart,sizeof(heart));
@@ -166,12 +208,21 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
                		     Write(STDOUT_FILENO, buf, n);
                   		 Writen(sockfd, buf, n);
 						*/
+						info inf;
+						inf.fd=sockfd;
+						inf.n=n;
+						strcpy(inf.bbuf,buf);
+						threadpool_add(thp,to_participant,(void*)&inf);
+						/*
 						map<int,IPC>::iterator ite;
 						cout<<buf;
+						pthread_mutex_lock(&map_lock);
 						for(ite=mmap.begin();ite!=mmap.end();ite++){
 							Write(ite->first,buf,n);
 						//	sleep(3);
 						}
+						pthread_mutex_unlock(&map_lock);
+						*/
 						//char End[2]="!";
 						//for(ite=mmap.begin();ite!=mmap.end();ite++){
 						//	Write(ite->first,End,sizeof(End));
