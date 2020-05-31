@@ -16,12 +16,17 @@ int fd;
 int state=0;
 int coor_is_dead=0;
 int count=0;
+int opt=1;
+int efd1;
+int flag;
 
 map<string,string> database;
 string key,value;
 map<string,string>::iterator it;
 
 struct sockaddr_in serv_addr;
+struct sockaddr_in localaddr;
+struct epoll_event event;
 
 void *send_heart(void *arg){
 	cout<<"The heartbeat is sending\n";
@@ -45,21 +50,37 @@ void *add_count(void *arg){
 			}
 		}
 		else{
-			char str[16];
-			ct=connect(fd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
-			cout<<fd<<" "<<ct<<endl;
-		
-			int clie_port;
-			inet_ntop(AF_INET,&serv_addr.sin_addr,str,sizeof(str));
-			clie_port=serv_addr.sin_port;
-			cout<<"haha"<<str<<":"<<ntohs(clie_port)<<endl;
-		
-			if(ct>=0){
-				count=0;
-				coor_is_dead=0;
+			int res=epoll_ctl(efd1,EPOLL_CTL_DEL,fd,NULL);
+			if(res==-1){
+				perr_exit("epoll_ctl del error");
 			}
-			sleep(1);
-			continue;
+			Close(fd);
+			fd=Socket(AF_INET,SOCK_STREAM,0);
+			setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
+			Bind(fd,(struct sockaddr*)&localaddr,sizeof(localaddr));
+			char str[16];
+			int clie_port=0;
+			while(1){
+				ct=connect(fd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
+				cout<<fd<<" "<<ct<<endl;
+				//inet_ntop(AF_INET,&serv_addr.sin_addr,str,sizeof(str));
+				//clie_port=serv_addr.sin_port;
+				//cout<<"haha "<<str<<":"<<ntohs(clie_port)<<endl;
+				if(ct>=0){
+					count=0;
+					coor_is_dead=0;
+					event.events=EPOLLIN|EPOLLET;
+					flag = fcntl(fd, F_GETFL);          /* 修改connfd为非阻塞读 */
+   				 	flag |= O_NONBLOCK;
+    				fcntl(fd, F_SETFL, flag);
+	
+					event.data.fd=fd;
+					epoll_ctl(efd1,EPOLL_CTL_ADD,fd,&event);
+					break;
+				}
+				sleep(1);
+				//continue;
+			}
 		}
 		sleep(3);
 	}
@@ -70,10 +91,10 @@ int participant(char *cip,int cport,char *pip,int pport){
 	printf("%s:%d is waiting...\n",pip,pport);
 	
 	fd=Socket(AF_INET,SOCK_STREAM,0);
-	int opt=1;
+	//int opt=1;
 	setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
 
-	struct sockaddr_in localaddr;
+	//struct sockaddr_in localaddr;
 	bzero(&localaddr,sizeof(localaddr));
 	localaddr.sin_family=AF_INET;
 	localaddr.sin_addr.s_addr=htonl(INADDR_ANY);
@@ -87,6 +108,8 @@ int participant(char *cip,int cport,char *pip,int pport){
 	serv_addr.sin_port=htons(cport);
 	inet_pton(AF_INET,cip,&serv_addr.sin_addr.s_addr);
 
+	cout<<serv_addr.sin_port<<endl;
+	
 	Connect(fd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
 
 	pthread_t tid;
@@ -103,12 +126,12 @@ int participant(char *cip,int cport,char *pip,int pport){
 		perr_exit("pthread create error");
 	}
 
-	struct epoll_event event;
+	//struct epoll_event event;
 	struct epoll_event resevent[10];
-	int efd;int flag;int res;int len;
-	char buf[BUFSIZ];
-
-	efd=epoll_create(10);
+	int res;int len;
+	char buf[BUFSIZ];	
+	memset(buf,0,sizeof(buf));
+	efd1=epoll_create(10);
 	event.events=EPOLLIN|EPOLLET;
 
 	flag = fcntl(fd, F_GETFL);          /* 修改connfd为非阻塞读 */
@@ -116,16 +139,16 @@ int participant(char *cip,int cport,char *pip,int pport){
     fcntl(fd, F_SETFL, flag);
 
 	event.data.fd=fd;
-	epoll_ctl(efd,EPOLL_CTL_ADD,fd,&event);
+	epoll_ctl(efd1,EPOLL_CTL_ADD,fd,&event);
 	while(1){
 		printf("epoll_wait begin\n");
-        res = epoll_wait(efd, resevent, 10, -1);        //最多10个, 阻塞监听
+        res = epoll_wait(efd1, resevent, 10, -1);        //最多10个, 阻塞监听
         printf("epoll_wait end res %d\n", res);
 		if(resevent[0].data.fd==fd){
 			len=Read(fd,buf,sizeof(buf));
 			if(buf[0]=='!')count=0;
 			else{
-				cout<<buf<<endl;
+				cout<<buf;
 			}
 		}	
 //       if (resevent[0].data.fd == fd) {

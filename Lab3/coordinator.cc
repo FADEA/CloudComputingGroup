@@ -59,6 +59,8 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 	int n;
 	ssize_t nready,res;
 	char buf[MAXLINE],str[INET_ADDRSTRLEN];
+	memset(buf,0,sizeof(buf));
+	//cout<<"No 0. "<<buf<<endl;
 	socklen_t clilen;
 
 	struct sockaddr_in cliaddr,servaddr;
@@ -96,6 +98,7 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 		perr_exit("pthread_create error.");
 	}
 	pthread_detach(tid);
+	printf("into while(1)\n");
 	while(1){
 		nready=epoll_wait(efd,ep,OPEN_MAX,-1);
 		if(nready==-1){
@@ -110,7 +113,7 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 				connfd=Accept(listenfd,(struct sockaddr*)&cliaddr,&clilen);
 				inet_ntop(AF_INET,&cliaddr.sin_addr,str,sizeof(str));
 				clie_port=cliaddr.sin_port;
-				cout<<"haha"<<str<<":"<<clie_port<<endl;
+				cout<<"client or participant "<<str<<":"<<clie_port<<endl;
 				for(int i=0;i<p;i++){
 					if((strcmp(str,pip[i])==0)&&(pport[i]==clie_port)){
 						printf("%s:%d is add.\n",str,clie_port);
@@ -129,7 +132,8 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 			}
 			else{
 				sockfd=ep[i].data.fd;
-				n=Read(sockfd,buf,MAXLINE);
+				n=Read(sockfd,buf,sizeof(buf));
+				//cout<<"No1. "<<buf<<endl;
 				if(n==0){
 					if(mmap.find(sockfd)!=mmap.end())continue;
 					res=epoll_ctl(efd,EPOLL_CTL_DEL,sockfd,NULL);
@@ -163,14 +167,15 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
                   		 Writen(sockfd, buf, n);
 						*/
 						map<int,IPC>::iterator ite;
+						cout<<buf;
 						for(ite=mmap.begin();ite!=mmap.end();ite++){
 							Write(ite->first,buf,n);
-							sleep(3);
+						//	sleep(3);
 						}
-						char End[2]="!";
-						for(ite=mmap.begin();ite!=mmap.end();ite++){
-							Write(ite->first,End,sizeof(End));
-						}
+						//char End[2]="!";
+						//for(ite=mmap.begin();ite!=mmap.end();ite++){
+						//	Write(ite->first,End,sizeof(End));
+						//}
 						
 					}
 				}

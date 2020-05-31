@@ -99,6 +99,9 @@ int main(int argc,char *argv[]){
 		}
 	}
 	C_or_P=parse_config(config_file);
+	fflush(fp);
+	fflush(stdin);
+	fflush(stdout);
 	if(C_or_P==-1){
 		printf("%s error\n",basename(argv[2]));
 		return 1;
