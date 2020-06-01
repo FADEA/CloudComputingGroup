@@ -5,6 +5,7 @@ char *Rdel(char *ptr);
 char *Rset(char *ptr);
 char *Rget(char *ptr);
 
+char *all(char *ptr);
 
 
 #endif

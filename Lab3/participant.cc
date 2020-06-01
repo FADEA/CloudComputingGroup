@@ -44,7 +44,7 @@ int efd1;
 int flag;
 
 map<string,string> database;
-string key,value;
+//string key,value;
 map<string,string>::iterator it;
 
 vector<LE> log;
@@ -54,6 +54,7 @@ struct sockaddr_in localaddr;
 struct epoll_event event;
 
 pthread_mutex_t log_lock;
+pthread_mutex_t data_lock;
 
 int which_kind[100];
 sem_t sem1[100];
@@ -61,7 +62,7 @@ sem_t sem2[100];
 
 void *handle(void *arg){
 	infor *inf=(infor*)arg;
-	cout<<inf->bbuf<<endl;
+//	cout<<inf->bbuf<<endl;
 	State state=INIT;
 	LE le;
 	int i;int kind;
@@ -76,6 +77,7 @@ void *handle(void *arg){
 	i=i+1;
 	char temp[50];int tt=0;
 	memset(temp,0,sizeof(temp));
+	//cout<<"inf->bbuf[i]="<<inf->bbuf[i]<<endl;
 	if(inf->bbuf[i]=='0'){
 		kind=0;
 	}
@@ -90,7 +92,8 @@ void *handle(void *arg){
 		temp[tt++]=inf->bbuf[i];
 	}
 	content=temp;
-	cout<<content<<endl;
+	le.kind=kind;
+//	cout<<content<<endl;
 	le.content=content;
 	pthread_mutex_lock(&log_lock);
 	log.push_back(le);
@@ -99,7 +102,144 @@ void *handle(void *arg){
 	memset(ret_to_c,0,sizeof(ret_to_c));
 	ret_to_c[0]='@';
 	strcat(ret_to_c,clifd_char);
+	
+/*	if(kind==2){
+		strcat(ret_to_c,"|");
+		int cou=0;
+		int con_len=content.length();
+		string key;
+		for(int i=0;i<con_len;i++){	
+			if(content[i]!='|'){
+				key=key+content[i];
+			}
+			else if(content[i]=='|'){
+				pthread_mutex_lock(&data_lock);
+				map<string,string>::iterator mi=database.find(key);
+				if(mi!=database.end())cou++;
+				pthread_mutex_unlock(&data_lock);
+				key.clear();
+			}
+		}
+		pthread_mutex_lock(&data_lock);
+		map<string,string>::iterator mi=database.find(key);
+		if(mi!=database.end())cou++;
+		pthread_mutex_unlock(&data_lock);
+		key.clear();
+		char cou_char[5];
+		sprintf(cou_char,"%d",cou);
+		strcat(ret_to_c,cou_char);
+		strcat(ret_to_c,"|");
+	}
+*/
 	Write(inf->coorfd,ret_to_c,sizeof(ret_to_c));
+	sem_post(&sem1[clifd]);
+	sem_wait(&sem2[clifd]);
+//	cout<<which_kind[clifd]<<endl;
+	if(which_kind[clifd]==3){
+		vector<LE>::iterator lit;
+		pthread_mutex_lock(&log_lock);
+		for(lit=log.end()-1;;lit--){
+			if(lit->content=="commit"&&lit->clifd==clifd)break;
+			if(lit->clifd==clifd){
+				log.erase(lit);
+				break;
+			}
+			if(lit==log.begin())break;
+		}
+		pthread_mutex_unlock(&log_lock);
+	}
+	else if(which_kind[clifd]==4){
+		vector<LE>::iterator lit;
+		pthread_mutex_lock(&log_lock);
+		for(lit=log.end()-1;;lit--){
+			cout<<"content="<<lit->content<<" clifd="<<lit->clifd<<endl;
+			if(lit->content=="commit"&&lit->clifd==clifd)break;
+			string key;
+			string value;
+			int kv=0;int kv_len=lit->content.length();
+			if(lit->kind==0){
+					for(int i=0;i<kv_len;i++){
+						if(kv==0&&lit->content[i]!='|'){
+							key=key+lit->content[i];
+						}
+						else if(kv==0&&lit->content[i]=='|'){
+							kv=1;
+						}
+						else if(kv==1){
+							value=value+lit->content[i];
+						}
+					}
+					pthread_mutex_lock(&data_lock);
+					cout<<"key="<<key<<" value="<<value<<endl;
+					database.insert(pair<string,string>(key,value));
+					pthread_mutex_unlock(&data_lock);
+					key.clear();value.clear();
+			}
+			else if(lit->kind==2){
+				int count=0;
+				for(int i=0;i<kv_len;i++){
+					if(lit->content[i]!='|'){
+						key=key+lit->content[i];
+					}
+					else if(lit->content[i]=='|'){
+						pthread_mutex_lock(&data_lock);
+						map<string,string>::iterator mi=database.find(key);
+						if(mi!=database.end()){
+							count++;
+							database.erase(key);
+						}
+						pthread_mutex_unlock(&data_lock);
+						key.clear();
+					}
+				}
+				pthread_mutex_lock(&data_lock);
+				map<string,string>::iterator mi=database.find(key);
+				if(mi!=database.end()){
+					count++;
+					database.erase(key);
+				}
+				pthread_mutex_unlock(&data_lock);
+				key.clear();
+				char del_how[15];
+				memset(del_how,0,sizeof(del_how));
+				del_how[0]=':';
+				char fd_char[4];
+				sprintf(fd_char,"%d",lit->clifd);
+				strcat(del_how,fd_char);
+				char count_char[5];
+				sprintf(count_char,"%d",count);
+				strcat(del_how,"|");
+				strcat(del_how,count_char);
+				Write(inf->coorfd,del_how,sizeof(del_how));
+
+			}
+			if(lit==log.begin())break;
+		}
+		LE le_t;
+		le_t.kind=4;
+		le_t.clifd=clifd;
+		le_t.content="commit";
+		log.push_back(le_t);
+		pthread_mutex_unlock(&log_lock);
+	}
+
+
+
+
+
+
+
+
+
+	map<string,string>::iterator map_it;
+	cout<<"------------------------\n";
+	pthread_mutex_lock(&data_lock);
+	for(map_it=database.begin();map_it!=database.end();map_it++){
+		cout<<map_it->second<<endl;
+	}
+	pthread_mutex_unlock(&data_lock);
+	cout<<"------------------------\n";
+	which_kind[clifd]=0;
 }
 
 
@@ -171,10 +311,13 @@ int participant(char *cip,int cport,char *pip,int pport){
 	if(pthread_mutex_init(&(log_lock),NULL)!=0){
 		perr_exit("lock init failed.");
 	}
+	if(pthread_mutex_init(&(data_lock),NULL)!=0){
+		perr_exit("lock init failed.");
+	}
 	memset(which_kind,0,sizeof(which_kind));
 	for(int i=0;i<100;i++){
-		sem_init(&sem1[i],0,1);
-		sem_init(&sem2[i],0,1);
+		sem_init(&sem1[i],0,0);
+		sem_init(&sem2[i],0,0);
 	}
 
 	fd=Socket(AF_INET,SOCK_STREAM,0);
@@ -195,7 +338,7 @@ int participant(char *cip,int cport,char *pip,int pport){
 	serv_addr.sin_port=htons(cport);
 	inet_pton(AF_INET,cip,&serv_addr.sin_addr.s_addr);
 
-	cout<<serv_addr.sin_port<<endl;
+	//cout<<serv_addr.sin_port<<endl;
 	
 	Connect(fd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
 
@@ -239,6 +382,25 @@ int participant(char *cip,int cport,char *pip,int pport){
 			len=Read(fd,buf,sizeof(buf));
 			cout<<"len= "<<len<<endl;
 			if(buf[0]=='!')count=0;//心跳包
+			else if(buf[0]=='$'||buf[0]=='%'){
+				//cout<<buf<<endl;
+				char two_fd[5];int tft=0;
+				memset(two_fd,0,sizeof(two_fd));
+				for(int i=1;;i++){
+					if(buf[i]>='0'&&buf[i]<='9')two_fd[tft++]=buf[i];
+					else break;
+				}
+				tft=atoi(two_fd);
+				sem_wait(&sem1[tft]);
+				if(buf[0]=='$')
+				which_kind[tft]=4;
+				else if(buf[0]=='%')
+				which_kind[tft]=3;
+				sem_post(&sem2[tft]);
+			}
+	//		else if(buf[0]=='%'){
+	//			//cout<<buf<<endl;
+	//		}
 			else if(buf[0]=='*'){
 				infor inf;
 				inf.coorfd=fd;

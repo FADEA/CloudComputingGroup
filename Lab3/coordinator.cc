@@ -10,13 +10,16 @@
 #include "coordinator.h"
 #include "threadpool.h"
 #include <iostream>
+#include <semaphore.h>
 #include <fcntl.h>
-#define MAXLINE 100
-#define OPEN_MAX 5000
+#define MAXLINE 80
+#define OPEN_MAX 100
 using namespace std;
 
 int reach[100];
+int ndel[100];
 int which=1;
+sem_t sem[100];
 
 ssize_t efd;
 map<int,IPC>mmap;
@@ -27,12 +30,26 @@ struct info{
 	char bbuf[MAXLINE];
 };
 
-pthread_mutex_t map_lock;
 
+pthread_mutex_t map_lock;
+pthread_mutex_t reach_lock;
+threadpool_t *thp ;
+
+void *timeout(void *arg){
+	int time_fd=*(int *)arg;
+	sleep(5);
+	if(reach[time_fd]!=0){
+		cout<<"can't receive return msg from a participant.\n";
+		sem_post(&sem[time_fd]);
+	}
+	return NULL;
+}
 
 void *to_participant(void *arg){
 	info *inf=(info*)arg;
-	map<int,IPC>::iterator ite;
+	map<int,IPC>::iterator ite;	
+	char error[9]="-ERROR\r\n";
+	char success[9]="+OK\r\n";
 	//cout<<inf->bbuf;
 	int num=0;
 	int i=0;
@@ -127,7 +144,52 @@ void *to_participant(void *arg){
 				Write(ite->first,temp,sizeof(temp));
 			}
 			pthread_mutex_unlock(&map_lock);
+			threadpool_add(thp, timeout, (void*)&inf->fd);
+			sem_wait(&sem[inf->fd]);
+			if(reach[inf->fd]==0){
+				char commit[9];int ct=0;
+				commit[ct++]='$';
+			//	cout<<fd_len<<" "<<fd_char<<endl;
+				for(int j=0;j<fd_len;j++){
+					commit[ct++]=fd_char[j];
+				}
+				cout<<commit<<endl;
+				pthread_mutex_lock(&map_lock);
+				for(ite=mmap.begin();ite!=mmap.end();ite++){
+					Write(ite->first,commit,sizeof(commit));
+				}
+				pthread_mutex_unlock(&map_lock);
+				if(method==1){
+					Write(inf->fd,success,sizeof(success));
+				}
+				//else 	Write(inf->fd,success,sizeof(success));
 
+	/*			else if(method==3){
+					char del_temp[10];
+					memset(del_temp,0,sizeof(del_temp));
+					del_temp[0]=':';
+					char num_char[5];
+					sprintf(num_char,"%d",ndel[inf->fd]);
+					strcat(del_temp,num_char);
+					strcat(del_temp,"\r\n");
+					Write(inf->fd,del_temp,sizeof(del_temp));
+				}
+	*/
+			}
+			else{
+				char rollback[9];int rt=0;
+				rollback[rt++]='%';
+				for(int j=0;j<fd_len;j++){
+					rollback[rt++]=fd_char[j];
+				}
+				pthread_mutex_lock(&map_lock);
+				for(ite=mmap.begin();ite!=mmap.end();ite++){
+					Write(ite->first,rollback,sizeof(rollback));
+				}
+				pthread_mutex_unlock(&map_lock);
+				Write(inf->fd,error,sizeof(error));
+			}
+			
 		}
 		else pthread_mutex_unlock(&map_lock);
 	}
@@ -136,27 +198,20 @@ void *to_participant(void *arg){
 		reach[inf->fd]=mmap.size();
 		if(reach[inf->fd]==0)has_participant=0;
 		if(has_participant==1){
-			//cout<<"which="<<which<<" inf->fd="<<inf->fd<<endl;
 			int wh=which % reach[inf->fd];
 			which++;
-		//	cout<<"wh="<<wh<<endl;
 			for(ite=mmap.begin();ite!=mmap.end();ite++){
-			//	cout<<"aaaa ite->first="<<ite->first<<endl;
 				if(wh==0)break;
 				wh--;
 			}
-		//	cout<<"ite->first="<<ite->first<<endl;
 			Write(ite->first,temp,sizeof(temp));
 			pthread_mutex_unlock(&map_lock);
 		}
 		else pthread_mutex_unlock(&map_lock);
-		//cout<<"aaaaaa\n";
 	}
-	//cout<<"haha"<<endl;
-	char error[9]="-ERROR\r\n";
-//	if(has_participant==0){
-//		Write(inf->fd,error,sizeof(error));
-//	}
+	if(has_participant==0){
+		Write(inf->fd,error,sizeof(error));
+	}
 	return NULL;
 }
 
@@ -204,14 +259,19 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 	cout<<it->second.ip<<it->second.port<<it->second.count<<endl;
 	*/
 
-	
-    threadpool_t *thp = threadpool_create(3,100,100);
+	for(int i=0;i<100;i++){
+		sem_init(&sem[i],0,0);
+	}
+
+    thp = threadpool_create(3,100,100);
 	printf("pool init.\n");
-	if(pthread_mutex_init(&(map_lock),NULL)!=0){
+	if((pthread_mutex_init(&(map_lock),NULL)!=0)
+					||(pthread_mutex_init(&(reach_lock),NULL)!=0)){
 		perr_exit("lock init failed.");
 	}
 
 	memset(reach,0,sizeof(reach));
+	memset(ndel,0,sizeof(ndel));
 
 	int listenfd,connfd,sockfd;
 	int n;
@@ -349,6 +409,37 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						//mmap[sockfd].second.count=0;
 						cout<<"received heart_beat from client\n";
 					}
+					else if(buf[0]==':'){
+						cout<<buf<<endl;
+						//if(ndel[sockfd]==1){
+						//	continue;
+					//	}
+					//	else{
+							char fd_char[5];int ft=0;
+							memset(fd_char,0,sizeof(fd_char));
+							int i=0;
+							for(i=1;buf[i]!='|';i++){
+								fd_char[ft++]=buf[i];
+							}
+							ft=atoi(fd_char);
+							if(ndel[ft]==1)continue;
+							else {
+									ndel[ft]=1;
+									char count_char[5];int ct=0;
+									memset(count_char,0,sizeof(count_char));
+									for(i=i+1;;i++){
+										if(buf[i]>='0'&&buf[i]<='9')count_char[ct++]=buf[i];
+										else break;
+									}
+									char to_c[15];
+									memset(to_c,0,sizeof(to_c));
+									to_c[0]=':';
+									strcat(to_c,count_char);
+									strcat(to_c,"\r\n");
+									Write(ft,to_c,sizeof(to_c));
+							}
+				//		}
+					}
 					else if(buf[0]=='*'){
 							/*
 						 for (i = 0; i < n; i++)
@@ -359,6 +450,7 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						*/
 						info inf;
 						inf.fd=sockfd;
+						ndel[sockfd]=0;
 						inf.n=n;
 						strcpy(inf.bbuf,buf);
 						threadpool_add(thp,to_participant,(void*)&inf);
@@ -380,6 +472,32 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 					}
 					else if(buf[0]=='@'){
 						cout<<"par: "<<buf<<endl;
+						char which_fd[5];int wf=0;
+						memset(which_fd,0,sizeof(which_fd));
+						int i;
+						for(i=1;;i++){
+							if(buf[i]>='0'&&buf[i]<='9'){
+								which_fd[wf++]=buf[i];
+							}
+							else break;
+						}
+						wf=atoi(which_fd);
+					/*	char del_char[5];int dt=0;
+						memset(del_char,0,sizeof(del_char));
+						if(buf[i]=='|'){
+							for(i=i+1;;i++){
+								if(buf[i]>='0'&&buf[i]<='9'){
+									del_char[dt++]=buf[i];
+								}
+								else break;
+							}
+							dt=atoi(del_char);
+						}
+					*/
+						reach[wf]--;
+					//	cout<<dt<<endl;
+					//	ndel[wf]=dt;
+						if(reach[wf]==0)sem_post(&sem[wf]);
 					}
 				}
 			}

@@ -5,9 +5,6 @@
 #include <errno.h>
 
 
-int get_Method(char *ptr){
-	return 0;
-}
 
 char *Rdel(char *ptr){
 	static char str[100];
@@ -135,6 +132,12 @@ char *Rset(char *ptr){
 	return str;
 }
 
+char *all(char *ptr){
+	if(ptr[0]=='S')return Rset(ptr);
+	else if(ptr[0]=='G') return Rget(ptr);
+	else if(ptr[0]=='D') return Rdel(ptr);
+	return NULL;
+}
 /*
 int main(){
 	char buf[BUFSIZ];
