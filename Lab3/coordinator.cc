@@ -100,7 +100,7 @@ void *to_participant(void *arg){
 			}
 		}
 		else i=i+1;
-		temp[t]='|';
+		temp[t]='?';
 	}
 	//cout<<"fff "<<inf->bbuf[i]<<endl;
 	/*
@@ -154,9 +154,9 @@ void *to_participant(void *arg){
 	}
 	//cout<<"haha"<<endl;
 	char error[9]="-ERROR\r\n";
-	if(has_participant==0){
-		Write(inf->fd,error,sizeof(error));
-	}
+//	if(has_participant==0){
+//		Write(inf->fd,error,sizeof(error));
+//	}
 	return NULL;
 }
 
@@ -349,7 +349,7 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						//mmap[sockfd].second.count=0;
 						cout<<"received heart_beat from client\n";
 					}
-					else{
+					else if(buf[0]=='*'){
 							/*
 						 for (i = 0; i < n; i++)
                         buf[i] = toupper(buf[i]);   //转大写,写回给客户端
@@ -377,6 +377,9 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						//	Write(ite->first,End,sizeof(End));
 						//}
 						
+					}
+					else if(buf[0]=='@'){
+						cout<<"par: "<<buf<<endl;
 					}
 				}
 			}

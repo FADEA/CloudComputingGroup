@@ -45,8 +45,8 @@ int main(int argc,char *argv[]){
 //		else if(flag==3)
 //		Write(cfd,Rdel(buf),strlen(Rdel(buf)));
 	
-		n=Read(cfd,buf,sizeof(buf));
-		Write(STDOUT_FILENO,buf,n);
+//		n=Read(cfd,buf,sizeof(buf));
+//		Write(STDOUT_FILENO,buf,n);
 	}
 	Close(cfd);
 	return 0;

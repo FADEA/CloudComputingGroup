@@ -65,6 +65,7 @@ void *handle(void *arg){
 	State state=INIT;
 	LE le;
 	int i;int kind;
+	string content;
 	char clifd_char[5];int clifd=0;
 	memset(clifd_char,0,sizeof(clifd_char));
 	for(i=1;inf->bbuf[i]!='|';i++){
@@ -73,18 +74,32 @@ void *handle(void *arg){
 	clifd=atoi(clifd_char);
 	le.clifd=clifd;
 	i=i+1;
+	char temp[50];int tt=0;
+	memset(temp,0,sizeof(temp));
 	if(inf->bbuf[i]=='0'){
 		kind=0;
-		state=READY;
 	}
 	else if(inf->bbuf[i]=='1'){
 		kind=1;
-		state=READY;
 	}
 	else if(inf->bbuf[i]='2'){
 		kind=2;
-		state=READY;
 	}
+	i=i+2;
+	for(i=i;inf->bbuf[i]!='?';i++){
+		temp[tt++]=inf->bbuf[i];
+	}
+	content=temp;
+	cout<<content<<endl;
+	le.content=content;
+	pthread_mutex_lock(&log_lock);
+	log.push_back(le);
+	pthread_mutex_unlock(&log_lock);
+	char ret_to_c[10];
+	memset(ret_to_c,0,sizeof(ret_to_c));
+	ret_to_c[0]='@';
+	strcat(ret_to_c,clifd_char);
+	Write(inf->coorfd,ret_to_c,sizeof(ret_to_c));
 }
 
 
