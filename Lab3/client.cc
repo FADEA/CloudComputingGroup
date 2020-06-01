@@ -39,14 +39,14 @@ int main(int argc,char *argv[]){
 //		else if(ss=="del")flag=3;
 		fgets(buf,sizeof(buf),stdin);	
 //		if(flag==1)
-	//	Write(cfd,Rset(buf),strlen(Rset(buf)));
+		Write(cfd,Rset(buf),strlen(Rset(buf)));
 //		else if(flag==2)
-		Write(cfd,Rget(buf),strlen(Rget(buf)));
+//		Write(cfd,Rget(buf),strlen(Rget(buf)));
 //		else if(flag==3)
 //		Write(cfd,Rdel(buf),strlen(Rdel(buf)));
 	
-	//	n=Read(cfd,buf,sizeof(buf));
-	//	Write(STDOUT_FILENO,buf,n);
+		n=Read(cfd,buf,sizeof(buf));
+		Write(STDOUT_FILENO,buf,n);
 	}
 	Close(cfd);
 	return 0;

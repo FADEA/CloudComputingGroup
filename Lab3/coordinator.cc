@@ -36,7 +36,7 @@ void *to_participant(void *arg){
 	//cout<<inf->bbuf;
 	int num=0;
 	int i=0;
-	char temp[100];int t=0;
+	char temp[50];int t=0;
 	char how_much[10];int ht=0;
 	memset(temp,0,sizeof(temp));
 	memset(how_much,0,sizeof(how_much));
@@ -127,7 +127,8 @@ void *to_participant(void *arg){
 				Write(ite->first,temp,sizeof(temp));
 			}
 			pthread_mutex_unlock(&map_lock);
-		}	
+
+		}
 		else pthread_mutex_unlock(&map_lock);
 	}
 	else if(method==2){//get的是挂了的参与者没考虑
@@ -150,6 +151,11 @@ void *to_participant(void *arg){
 		}
 		else pthread_mutex_unlock(&map_lock);
 		//cout<<"aaaaaa\n";
+	}
+	//cout<<"haha"<<endl;
+	char error[9]="-ERROR\r\n";
+	if(has_participant==0){
+		Write(inf->fd,error,sizeof(error));
 	}
 	return NULL;
 }

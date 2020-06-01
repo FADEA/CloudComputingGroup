@@ -9,8 +9,11 @@
 #include <fcntl.h>
 #include <map>
 #include <stack>
+#include <vector>
+#include <semaphore.h>
 #include "wrap.h"
 #include "participant.h"
+#include "threadpool.h"
 #include <iostream>
 using namespace std;
 
@@ -22,12 +25,18 @@ using namespace std;
  * commit-4
  */
 struct LE{
+	int clifd;
 	int kind;
 	string content;
 };
 
+struct infor{
+	int coorfd;
+	char bbuf[50];
+};
+
 int fd;
-State state=INIT;
+//State state=INIT;
 int coor_is_dead=0;
 int count=0;
 int opt=1;
@@ -38,11 +47,46 @@ map<string,string> database;
 string key,value;
 map<string,string>::iterator it;
 
-stack<LE> log;
+vector<LE> log;
 
 struct sockaddr_in serv_addr;
 struct sockaddr_in localaddr;
 struct epoll_event event;
+
+pthread_mutex_t log_lock;
+
+int which_kind[100];
+sem_t sem1[100];
+sem_t sem2[100];
+
+void *handle(void *arg){
+	infor *inf=(infor*)arg;
+	cout<<inf->bbuf<<endl;
+	State state=INIT;
+	LE le;
+	int i;int kind;
+	char clifd_char[5];int clifd=0;
+	memset(clifd_char,0,sizeof(clifd_char));
+	for(i=1;inf->bbuf[i]!='|';i++){
+		clifd_char[clifd++]=inf->bbuf[i];
+	}
+	clifd=atoi(clifd_char);
+	le.clifd=clifd;
+	i=i+1;
+	if(inf->bbuf[i]=='0'){
+		kind=0;
+		state=READY;
+	}
+	else if(inf->bbuf[i]=='1'){
+		kind=1;
+		state=READY;
+	}
+	else if(inf->bbuf[i]='2'){
+		kind=2;
+		state=READY;
+	}
+}
+
 
 void *send_heart(void *arg){
 	cout<<"The heartbeat is sending\n";
@@ -106,6 +150,18 @@ void *add_count(void *arg){
 int participant(char *cip,int cport,char *pip,int pport){
 	printf("%s:%d is waiting...\n",pip,pport);
 	
+
+	threadpool_t *thp = threadpool_create(3,100,100);
+	printf("pool init.\n");
+	if(pthread_mutex_init(&(log_lock),NULL)!=0){
+		perr_exit("lock init failed.");
+	}
+	memset(which_kind,0,sizeof(which_kind));
+	for(int i=0;i<100;i++){
+		sem_init(&sem1[i],0,1);
+		sem_init(&sem2[i],0,1);
+	}
+
 	fd=Socket(AF_INET,SOCK_STREAM,0);
 	//int opt=1;
 	setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
@@ -168,47 +224,37 @@ int participant(char *cip,int cport,char *pip,int pport){
 			len=Read(fd,buf,sizeof(buf));
 			cout<<"len= "<<len<<endl;
 			if(buf[0]=='!')count=0;//心跳包
-			else{
-				cout<<buf<<endl;
+			else if(buf[0]=='*'){
+				infor inf;
+				inf.coorfd=fd;
+				strcpy(inf.bbuf,buf);
+				threadpool_add(thp,handle,(void*)&inf);
 				/*
-				if(buf[0]=='*'&&state==INIT){//set/get/del/abort/del
-					LE le;
-					char temp[30];
-					int t=0;
-					int kind;
-					string content;
-					kind=buf[1]-'0';
-					if(kind==3||kind==4)continue;
-					for(int i=2;buf[i]!='?';i++){
-						temp[t++]=buf[i];
-					}
-					temp[t]='\0';
-					content=temp;
-					le.kind=kind;
-					le.content=content;
-					log.push(le);
+				cout<<buf<<endl;
+				LE le;
+				int i;int kind;
+				char clifd_char[5];int clifd=0;
+				memset(clifd_char,0,sizeof(clifd_char));
+				for(i=1;buf[i]!='|';i++){
+					clifd_char[clifd++]=buf[i];
+				}
+				clifd=atoi(clifd_char);
+				le.clifd=clifd;
+				i=i+1;
+				if(buf[i]=='0'){
+					kind=0;
+					state=READY;
+
+				}
+				else if(buf[i]=='1'){
+					kind=1;
 					state=READY;
 				}
-				else if(buf[0]=='*'&&state==READY){
-					int kind;
-					string content;
-					kind=buf[1]-'0';
-					if(kind==3){
-							
-					}
-					else if(kind==4){
-						string key;
-						string value;
-						LE le=log.top();
-					}
-					else{
-						continue;
-					}
-				}
-				else if(buf[0]=='#'){//log
-					
+				else if(buf[i]='2'){
+					kind=2;
+					state=READY;
 				}*/
-
+			
 			}
 		}	
 //       if (resevent[0].data.fd == fd) {
