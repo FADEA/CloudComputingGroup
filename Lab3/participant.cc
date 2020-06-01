@@ -92,6 +92,35 @@ void *handle(void *arg){
 		temp[tt++]=inf->bbuf[i];
 	}
 	content=temp;
+	if(kind==1){
+	//	cout<<"get "<<content<<endl;
+		string value;
+		pthread_mutex_lock(&data_lock);
+		map<string,string>::iterator getit=database.find(content);
+		if(getit!=database.end()){
+			value=getit->second;
+			char val[25];
+			strcpy(val,value.c_str());
+			cout<<val<<endl;
+			char get_char[35];
+			memset(get_char,0,sizeof(get_char));
+			get_char[0]=')';
+			strcat(get_char,clifd_char);
+			strcat(get_char,"|");
+			strcat(get_char,val);
+			Write(inf->coorfd,get_char,sizeof(get_char));
+		}
+		else{
+			char get_char[10];
+			memset(get_char,0,sizeof(get_char));
+			get_char[0]='(';
+			strcat(get_char,clifd_char);
+			Write(inf->coorfd,get_char,sizeof(get_char));
+		}
+		pthread_mutex_unlock(&data_lock);
+		return NULL;
+	}
+	else{
 	le.kind=kind;
 //	cout<<content<<endl;
 	le.content=content;
@@ -226,7 +255,7 @@ void *handle(void *arg){
 
 
 
-
+	}
 
 
 
@@ -248,7 +277,7 @@ void *send_heart(void *arg){
 	char heart[2]="!";
 	while(1){
 		send(fd,heart,sizeof(heart),0);
-		sleep(3);
+		sleep(2);
 	}
 	return NULL;
 }
@@ -297,7 +326,7 @@ void *add_count(void *arg){
 				//continue;
 			}
 		}
-		sleep(3);
+		sleep(2);
 	}
 
 }
@@ -382,6 +411,77 @@ int participant(char *cip,int cport,char *pip,int pport){
 			len=Read(fd,buf,sizeof(buf));
 			cout<<"len= "<<len<<endl;
 			if(buf[0]=='!')count=0;//心跳包
+			else if(buf[0]=='#'){
+				cout<<buf<<endl;
+				int i;
+				for(i=1;;i++){
+					if(buf[i]=='|')break;
+				}
+				i=i+1;
+				if(buf[i]=='0'){
+					i=i+2;
+					string key;
+					string value;
+					for(i=i;;i++){
+						if(buf[i]=='|')break;
+						key=key+buf[i];
+					}
+					for(i=i+1;;i++){
+						if(buf[i]=='?')break;
+						value=value+buf[i];
+					}
+					cout<<"key="<<key<<" value="<<value<<endl;
+					database.insert(pair<string,string>(key,value));
+					key.clear();value.clear();					
+				}
+				else if(buf[i]=='2'){
+					i=i+2;
+					string key;
+					for(i=i;;i++){
+						if(buf[i]=='?'){
+							database.erase(key);
+							key.clear();
+							break;
+						}
+						else if(buf[i]=='|'){
+							database.erase(key);
+							key.clear();
+						}
+						else{
+							key=key+buf[i];
+						}
+					}
+				}
+			}
+			else if(buf[0]=='^'){
+				pthread_mutex_lock(&log_lock);
+				int has_commit[100];int ht=0;
+				memset(has_commit,0,sizeof(has_commit));
+				vector<LE>::iterator lit;
+				if(log.size()!=0){
+						cout<<"log.size()="<<log.size()<<endl;
+						for(lit=log.end()-1;;lit--){
+							if(lit->content=="commit"){
+								has_commit[ht++]=lit->clifd;
+							}
+							else{
+								int flag=0;
+								for(int i=0;i<ht;i++){
+									if(lit->clifd==has_commit[i]){
+										flag=1;
+										break;
+									}
+								}
+								if(flag==0){
+									cout<<"erase a log.\n";
+									log.erase(lit);
+								}
+							}
+							if(lit==log.begin())break;
+						}
+				}
+				pthread_mutex_unlock(&log_lock);
+			}
 			else if(buf[0]=='$'||buf[0]=='%'){
 				//cout<<buf<<endl;
 				char two_fd[5];int tft=0;
@@ -402,6 +502,7 @@ int participant(char *cip,int cport,char *pip,int pport){
 	//			//cout<<buf<<endl;
 	//		}
 			else if(buf[0]=='*'){
+				//cout<<"hhhhhh "<<buf<<endl;
 				infor inf;
 				inf.coorfd=fd;
 				strcpy(inf.bbuf,buf);

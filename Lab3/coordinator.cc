@@ -12,6 +12,8 @@
 #include <iostream>
 #include <semaphore.h>
 #include <fcntl.h>
+#include <vector>
+
 #define MAXLINE 80
 #define OPEN_MAX 100
 using namespace std;
@@ -30,6 +32,13 @@ struct info{
 	char bbuf[MAXLINE];
 };
 
+struct LE1{
+//	int clifd;
+//	int kind;
+	string content;
+};
+vector<LE1> log1;
+
 
 pthread_mutex_t map_lock;
 pthread_mutex_t reach_lock;
@@ -38,6 +47,7 @@ threadpool_t *thp ;
 void *timeout(void *arg){
 	int time_fd=*(int *)arg;
 	sleep(5);
+	pthread_testcancel();
 	if(reach[time_fd]!=0){
 		cout<<"can't receive return msg from a participant.\n";
 		sem_post(&sem[time_fd]);
@@ -144,9 +154,13 @@ void *to_participant(void *arg){
 				Write(ite->first,temp,sizeof(temp));
 			}
 			pthread_mutex_unlock(&map_lock);
-			threadpool_add(thp, timeout, (void*)&inf->fd);
+			pthread_t tid;
+			pthread_create(&tid,NULL,timeout,(void*)&inf->fd);
+
+			//threadpool_add(thp, timeout, (void*)&inf->fd);
 			sem_wait(&sem[inf->fd]);
 			if(reach[inf->fd]==0){
+				pthread_cancel(tid);
 				char commit[9];int ct=0;
 				commit[ct++]='$';
 			//	cout<<fd_len<<" "<<fd_char<<endl;
@@ -159,6 +173,12 @@ void *to_participant(void *arg){
 					Write(ite->first,commit,sizeof(commit));
 				}
 				pthread_mutex_unlock(&map_lock);
+			
+				LE1 le;
+				le.content=temp;
+				le.content[0]='#';
+				log1.push_back(le);
+				cout<<"log temp="<<temp<<endl;
 				if(method==1){
 					Write(inf->fd,success,sizeof(success));
 				}
@@ -177,6 +197,7 @@ void *to_participant(void *arg){
 	*/
 			}
 			else{
+				cout<<"haha "<<reach[inf->fd]<<endl;
 				char rollback[9];int rt=0;
 				rollback[rt++]='%';
 				for(int j=0;j<fd_len;j++){
@@ -244,7 +265,7 @@ void *heart_handler(void* arg){
 			}
 		}
 		pthread_mutex_unlock(&map_lock);
-		sleep(3);
+		sleep(2);
 	}
 }
 
@@ -348,7 +369,27 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						ipc.port=clie_port;
 						ipc.count=0;
 						pthread_mutex_lock(&map_lock);
+						map<int,IPC>::iterator ite;	
 						mmap.insert(pair<int,IPC>(connfd,ipc));
+					//	pthread_mutex_unlock(&map_lock);
+						for(ite=mmap.begin();ite!=mmap.end();ite++){
+						//	Write(ite->first,temp,sizeof(temp));
+							char abort[2]="^";
+							Write(ite->first,abort,sizeof(abort));
+						}
+						if(log1.size()!=0){
+							cout<<"log.size()="<<log1.size()<<endl;
+							vector<LE1>::iterator lit;
+							sleep(1);
+							cout<<"start transport log.\n";
+							for(lit=log1.begin();lit!=log1.end();lit++){
+								char log_char[30];
+								memset(log_char,0,sizeof(log_char));
+								strcpy(log_char,lit->content.c_str());
+								cout<<log_char<<endl;
+								Write(connfd,log_char,sizeof(log_char));
+							}
+						}
 						pthread_mutex_unlock(&map_lock);
 					}
 				}
@@ -408,6 +449,62 @@ int coordinator(char *cip,int cport,char (*pip)[16],int pport[],int p){
 						Write(sockfd,heart,sizeof(heart));
 						//mmap[sockfd].second.count=0;
 						cout<<"received heart_beat from client\n";
+					}
+					else if(buf[0]=='('){
+						cout<<buf<<endl;
+						char fd_char[10];int ft=0;
+						memset(fd_char,0,sizeof(fd_char));
+						for(int i=1;;i++){
+							if(buf[i]>='0'&&buf[i]<='9')fd_char[ft++]=buf[i];
+							else break;
+						}
+						ft=atoi(fd_char);
+						char nil[15]="*1\r\n$3\r\nnil\r\n";
+						Write(ft,nil,sizeof(nil));
+					}
+					else if(buf[0]==')'){
+						cout<<buf<<endl;
+						char fd_char[10];int ft=0;
+						memset(fd_char,0,sizeof(fd_char));
+						int i;
+						for(i=1;;i++){
+							if(buf[i]>='0'&&buf[i]<='9')fd_char[ft++]=buf[i];
+							else break;
+						}
+						ft=atoi(fd_char);
+						int space_num=0;
+						int length=(int)strlen(buf);
+						for(int j=i+1;j<length;j++){
+							if(buf[j]=='|')space_num++;
+						}
+						char to_c[35];
+						memset(to_c,0,sizeof(to_c));
+						char space_char[5];
+						memset(space_char,0,sizeof(space_char));
+						sprintf(space_char,"%d",space_num+1);
+						to_c[0]='*';
+						strcat(to_c,space_char);
+						strcat(to_c,"\r\n");
+						space_num++;
+						while(space_num--){
+							char fd_char1[10];int ft1=0;
+							memset(fd_char1,0,sizeof(fd_char1));
+							for(i=i+1;i<length;i++){
+								if(buf[i]!='|'){
+									fd_char1[ft1++]=buf[i];
+								}
+								else break;
+							}
+							char num_char[5];
+							memset(num_char,0,sizeof(num_char));
+							sprintf(num_char,"%d",ft1);
+							strcat(to_c,"$");
+							strcat(to_c,num_char);
+							strcat(to_c,"\r\n");
+							strcat(to_c,fd_char1);
+							strcat(to_c,"\r\n");
+						}
+						Write(ft,to_c,sizeof(to_c));
 					}
 					else if(buf[0]==':'){
 						cout<<buf<<endl;
